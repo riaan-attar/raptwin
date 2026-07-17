@@ -12,15 +12,30 @@
 #   make docker-launch     # (optional) approximate container emulation
 #   make docker-clean      # stop/remove launched containers
 
-# ---------- config ----------
-PY     ?= python3
-PIP    ?= pip3
-VENV   ?= .venv
-ACT    ?= . $(VENV)/bin/activate
+# ---------- OS detection ----------
+ifeq ($(OS),Windows_NT)
+    PY     ?= python
+    PIP    ?= pip
+    VENV   ?= .venv
+    ACT    := $(VENV)\Scripts\activate.bat
+    # Run commands via cmd.exe
+    SHELL  := cmd.exe
+    .SHELLFLAGS := /C
+    # Separator for chaining commands on Windows
+    SEP    := &&
+    RM_CMD := rmdir /s /q
+else
+    PY     ?= python3
+    PIP    ?= pip3
+    VENV   ?= .venv
+    ACT    := . $(VENV)/bin/activate
+    SEP    := ;
+    RM_CMD := rm -rf
+endif
 
-API_HOST ?= 127.0.0.1
+API_HOST ?= localhost
 API_PORT ?= 8080
-UI_HOST  ?= 127.0.0.1
+UI_HOST  ?= localhost
 UI_PORT  ?= 8090
 
 NODES_DIR ?= nodes
@@ -39,91 +54,152 @@ POLICY_LIMIT ?= 6
         docker-launch docker-clean
 
 help:
-	@echo "Targets:"
-	@echo "  install          - create venv and install requirements"
-	@echo "  run-api          - start DT API at http://$(API_HOST):$(API_PORT)"
-	@echo "  run-ui           - start Dashboard at http://$(UI_HOST):$(UI_PORT)"
-	@echo "  gen-nodes        - synthesize 100 realistic nodes into $(NODES_DIR)/"
-	@echo "  validate-nodes   - validate nodes/*.yaml against schema"
-	@echo "  summarize-nodes  - print inventory table"
-	@echo "  export-csv       - export last plan(s) to CSV"
-        @echo "  plan             - plan $(JOBS_FILE) locally (dry-run)"
-        @echo "  policy-benchmark - benchmark planners & plot metrics"
-	@echo "  demo             - send demo jobs (local); see vars NUM, WORKERS"
-	@echo "  montecarlo       - run Monte Carlo simulation"
-	@echo "  chaos            - apply chaos schedule from $(TOPO_FILE) (SCENARIO=name)"
-	@echo "  docker-launch    - launch approx containers for nodes/"
-	@echo "  docker-clean     - stop & remove launched containers"
-	@echo "  format           - black/isort format"
-	@echo "  lint             - ruff lint"
-	@echo "  clean            - remove caches & build artifacts"
+	@echo Targets:
+	@echo   install          - create venv and install requirements
+	@echo   run-api          - start DT API at http://$(API_HOST):$(API_PORT)
+	@echo   run-ui           - start Dashboard at http://$(UI_HOST):$(UI_PORT)
+	@echo   gen-nodes        - synthesize 100 realistic nodes into $(NODES_DIR)/
+	@echo   validate-nodes   - validate nodes/*.yaml against schema
+	@echo   summarize-nodes  - print inventory table
+	@echo   export-csv       - export last plan(s) to CSV
+	@echo   plan             - plan $(JOBS_FILE) locally dry-run
+	@echo   policy-benchmark - benchmark planners and plot metrics
+	@echo   demo             - send demo jobs (local); see vars NUM, WORKERS
+	@echo   montecarlo       - run Monte Carlo simulation
+	@echo   chaos            - apply chaos schedule from $(TOPO_FILE)
+	@echo   docker-launch    - launch approx containers for nodes/
+	@echo   docker-clean     - stop and remove launched containers
+	@echo   format           - black/isort format
+	@echo   lint             - ruff lint
+	@echo   clean            - remove caches and build artifacts
 
 # ---------- env/deps ----------
 venv:
 	$(PY) -m venv $(VENV)
 
+ifeq ($(OS),Windows_NT)
+deps: requirements.txt
+	$(ACT) $(SEP) $(PIP) install -U pip
+	$(ACT) $(SEP) $(PIP) install -r requirements.txt
+
+install: deps
+	@echo Environment ready.
+
+freeze:
+	$(ACT) $(SEP) $(PIP) freeze > requirements.lock.txt
+
+# ---------- run DT ----------
+run-api:
+	$(ACT) $(SEP) set FABRIC_API_HOST=$(API_HOST) $(SEP) set FABRIC_API_PORT=$(API_PORT) $(SEP) $(PY) -m dt.api
+
+run-ui:
+	$(ACT) $(SEP) set FABRIC_DT_REMOTE=http://$(API_HOST):$(API_PORT) $(SEP) set FABRIC_UI_HOST=$(UI_HOST) $(SEP) set FABRIC_UI_PORT=$(UI_PORT) $(SEP) $(PY) -m ui.dashboard
+
+# ---------- data generation / validation ----------
+gen-nodes:
+	$(ACT) $(SEP) $(PY) -m sim.gen_nodes --out-dir $(NODES_DIR) --count 100
+
+validate-nodes:
+	$(ACT) $(SEP) $(PY) -m tools.validate_nodes
+
+summarize-nodes:
+	$(ACT) $(SEP) $(PY) -m tools.summarize_nodes
+
+export-csv:
+	$(ACT) $(SEP) $(PY) -m tools.export_csv --in plans/last.json --out plots/last.csv
+
+# ---------- planning ----------
+plan:
+	$(ACT) $(SEP) $(PY) -m planner.run_plan --job $(JOBS_FILE) --dry-run
+
+policy-benchmark:
+	$(ACT) $(SEP) $(PY) -m tools.policy_benchmark --jobs $(POLICY_JOBS) --strategies $(POLICY_STRATEGIES) --out $(POLICY_PLOT) --json-out $(POLICY_JSON) --limit $(POLICY_LIMIT)
+
+demo:
+	$(ACT) $(SEP) $(PY) -m planner.submit_demo -n 10 -w 1 --qps 0.0 --out-json plans/demo.json --out-csv plans/demo.csv
+
+montecarlo:
+	$(ACT) $(SEP) $(PY) -m sim.montecarlo --jobs $(JOBS_FILE) --trials 200 --out plans/montecarlo.json
+
+chaos:
+	$(ACT) $(SEP) $(PY) -m sim.chaos --topology $(TOPO_FILE) --run
+
+# ---------- docker (optional) ----------
+docker-launch:
+	$(ACT) $(SEP) $(PY) -m fabric_docker.launch_fabric --nodes $(NODES_DIR) --topology $(TOPO_FILE) --network fabric-net --image alpine:3.20 --prefix fab- --tc none
+
+docker-clean:
+	@echo Stopping and removing containers with prefix fab-
+	- docker ps -a --format {{.Names}} | findstr /B fab- | xargs docker rm -f
+	- docker network rm fabric-net
+	@echo Docker clean done.
+
+# ---------- dev hygiene ----------
+format:
+	$(ACT) $(SEP) black dt planner sim tools ui fabric_docker
+	$(ACT) $(SEP) isort dt planner sim tools ui fabric_docker
+
+lint:
+	$(ACT) $(SEP) ruff check dt planner sim tools ui fabric_docker
+
+clean:
+	@if exist __pycache__ $(RM_CMD) __pycache__
+	@if exist .pytest_cache $(RM_CMD) .pytest_cache
+	@if exist .mypy_cache $(RM_CMD) .mypy_cache
+	@if exist .ruff_cache $(RM_CMD) .ruff_cache
+	@echo Cleaned.
+
+else
+# ---------- Unix targets ----------
 deps: requirements.txt | venv
-	$(ACT); $(PIP) install -U pip
-	$(ACT); $(PIP) install -r requirements.txt
+	$(ACT) $(SEP) $(PIP) install -U pip
+	$(ACT) $(SEP) $(PIP) install -r requirements.txt
 
 install: deps
 	@echo "✔ Environment ready."
 
 freeze:
-	$(ACT); $(PIP) freeze > requirements.lock.txt
+	$(ACT) $(SEP) $(PIP) freeze > requirements.lock.txt
 
-# ---------- run DT ----------
 run-api:
-	$(ACT); FABRIC_API_HOST=$(API_HOST) FABRIC_API_PORT=$(API_PORT) $(PY) -m dt.api
+	$(ACT) $(SEP) FABRIC_API_HOST=$(API_HOST) FABRIC_API_PORT=$(API_PORT) $(PY) -m dt.api
 
 run-ui:
-	$(ACT); \
-	if [ -z "$${FABRIC_DT_REMOTE+x}" ]; then \
-		REMOTE="http://$(API_HOST):$(API_PORT)"; \
-	else \
-		REMOTE="$${FABRIC_DT_REMOTE}"; \
-	fi; \
-	FABRIC_UI_HOST=$(UI_HOST) FABRIC_UI_PORT=$(UI_PORT) FABRIC_DT_REMOTE="$$REMOTE" $(PY) -m ui.dashboard
+	$(ACT) $(SEP) FABRIC_DT_REMOTE=http://$(API_HOST):$(API_PORT) FABRIC_UI_HOST=$(UI_HOST) FABRIC_UI_PORT=$(UI_PORT) $(PY) -m ui.dashboard
 
-# ---------- data generation / validation ----------
 gen-nodes:
-	$(ACT); $(PY) -m sim.gen_nodes --out-dir $(NODES_DIR) --count 100
+	$(ACT) $(SEP) $(PY) -m sim.gen_nodes --out-dir $(NODES_DIR) --count 100
 
 validate-nodes:
-	$(ACT); $(PY) -m tools.validate_nodes
+	$(ACT) $(SEP) $(PY) -m tools.validate_nodes
 
 summarize-nodes:
-	$(ACT); $(PY) -m tools.summarize_nodes
+	$(ACT) $(SEP) $(PY) -m tools.summarize_nodes
 
 export-csv:
-	$(ACT); $(PY) -m tools.export_csv --in plans/last.json --out plots/last.csv
+	$(ACT) $(SEP) $(PY) -m tools.export_csv --in plans/last.json --out plots/last.csv
 
-# ---------- planning ----------
 plan:
-        $(ACT); $(PY) -m planner.run_plan --job $(JOBS_FILE) --dry-run
+	$(ACT) $(SEP) $(PY) -m planner.run_plan --job $(JOBS_FILE) --dry-run
 
 policy-benchmark:
-        $(ACT); $(PY) -m tools.policy_benchmark --jobs $(POLICY_JOBS) --strategies $(POLICY_STRATEGIES) --out $(POLICY_PLOT) --json-out $(POLICY_JSON) --limit $(POLICY_LIMIT)
+	$(ACT) $(SEP) $(PY) -m tools.policy_benchmark --jobs $(POLICY_JOBS) --strategies $(POLICY_STRATEGIES) --out $(POLICY_PLOT) --json-out $(POLICY_JSON) --limit $(POLICY_LIMIT)
 
-# Demo knobs: NUM=50 WORKERS=4 QPS=2.0 DRY=0 REMOTE=http://127.0.0.1:8080
 demo:
-	$(ACT); $(PY) -m planner.submit_demo \
+	$(ACT) $(SEP) $(PY) -m planner.submit_demo \
 		-n $${NUM:-10} -w $${WORKERS:-1} --qps $${QPS:-0.0} \
 		$$( [ "$${DRY:-1}" = "1" ] && echo "" || echo "--no-dry-run") \
 		$$( [ -z "$${REMOTE}" ] && echo "" || echo "--remote $${REMOTE}" ) \
 		--out-json plans/demo.json --out-csv plans/demo.csv
 
-# ---------- simulation ----------
 montecarlo:
-	$(ACT); $(PY) -m sim.montecarlo --jobs $(JOBS_FILE) --trials $${TRIALS:-200} --out plans/montecarlo.json
+	$(ACT) $(SEP) $(PY) -m sim.montecarlo --jobs $(JOBS_FILE) --trials $${TRIALS:-200} --out plans/montecarlo.json
 
 chaos:
-	$(ACT); $(PY) -m sim.chaos --topology $(TOPO_FILE) $$( [ -z "$$SCENARIO" ] && echo "" || echo "--scenario $$SCENARIO" ) --run
+	$(ACT) $(SEP) $(PY) -m sim.chaos --topology $(TOPO_FILE) $$( [ -z "$$SCENARIO" ] && echo "" || echo "--scenario $$SCENARIO" ) --run
 
-# ---------- docker (optional) ----------
-# Requires: pip install docker, docker daemon running
 docker-launch:
-	$(ACT); $(PY) -m fabric_docker.launch_fabric --nodes $(NODES_DIR) --topology $(TOPO_FILE) --network fabric-net --image alpine:3.20 --prefix fab- --tc none
+	$(ACT) $(SEP) $(PY) -m fabric_docker.launch_fabric --nodes $(NODES_DIR) --topology $(TOPO_FILE) --network fabric-net --image alpine:3.20 --prefix fab- --tc none
 
 docker-clean:
 	@echo "Stopping & removing containers with label/prefix 'fab-' on network fabric-net…"
@@ -131,17 +207,16 @@ docker-clean:
 	- docker network rm fabric-net 2>/dev/null || true
 	@echo "✔ Docker clean done."
 
-# ---------- dev hygiene ----------
 format:
-	$(ACT); black dt planner sim tools ui fabric_docker || true
-	$(ACT); isort dt planner sim tools ui fabric_docker || true
+	$(ACT) $(SEP) black dt planner sim tools ui fabric_docker || true
+	$(ACT) $(SEP) isort dt planner sim tools ui fabric_docker || true
 
 lint:
-	$(ACT); ruff check dt planner sim tools ui fabric_docker || true
+	$(ACT) $(SEP) ruff check dt planner sim tools ui fabric_docker || true
 
 clean:
 	@find . -name '__pycache__' -type d -prune -exec rm -rf {} +
 	@find . -name '*.pyc' -delete
 	@rm -rf .pytest_cache .mypy_cache .ruff_cache build dist *.egg-info
 	@echo "✔ Cleaned."
-
+endif

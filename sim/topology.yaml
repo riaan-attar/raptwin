@@ -1,9 +1,9 @@
 version: "0.1.0"
 
 metadata:
-  name: "Campus+City Fabric"
-  owner: "Shubhankar / NeoCloud DT"
-  description: "Two-region fabric across college campus and nearby city cloudlet; mixes Ethernet/IB/Wi-Fi/LTE."
+  name: "KKWIEER+NASHIK Fabric"
+  owner: "Riaan Attar"
+  description: "Two-region fabric across college campus KKWIEER and nearby city NASHIK; mixes Ethernet/IB/Wi-Fi/LTE."
   created: "2025-11-07T14:00:00Z"
   tags: [demo, heterogenous, campus, city, wifi7, infiniband]
 
@@ -41,7 +41,7 @@ defaults:
 
 regions:
   - name: campus
-    labels: { jurisdiction: "IIITDM-K" }
+    labels: { jurisdiction: "KKWIEER" }
     network:
       fabric: ethernet
       speed_gbps: 25
@@ -75,7 +75,7 @@ regions:
           - { type: bluefield3, ports_gbps: 400, protocol: rocev2, offloads: [tls, ipsec, nvmeof, telemetry] }
 
   - name: city_mesh
-    labels: { jurisdiction: "City-Edge" }
+    labels: { jurisdiction: "NASHIK" }
     network:
       fabric: ethernet
       speed_gbps: 10

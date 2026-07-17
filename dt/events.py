@@ -3,6 +3,7 @@
 """Simple CloudEvents helpers for the Fabric Digital Twin."""
 from __future__ import annotations
 
+import datetime
 import threading
 import time
 import uuid
@@ -26,7 +27,7 @@ def build_cloudevent(
         "id": event_id or str(uuid.uuid4()),
         "type": event_type,
         "source": source,
-        "time": time.strftime("%Y-%m-%dT%H:%M:%S.%fZ", time.gmtime(ts)),
+        "time": datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z",
         "data": data,
     }
     if subject:
