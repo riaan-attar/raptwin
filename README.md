@@ -1,4 +1,4 @@
-# Fabric Digital Twin Simulator
+# RAP TWIN DIGITAL TWIN FABRIC SIMULATOR
 
 A self-contained digital-twin and planning sandbox for experimenting with job placement, scheduling policies, failure scenarios, and performance analytics. The repository bundles a Flask API, console planner, browser dashboard, Monte-Carlo tooling, chaos engine, and optional Docker launcher so you can drive closed-loop simulations end-to-end on a laptop or workstation.
 
@@ -32,8 +32,8 @@ Follow these steps on a clean Ubuntu, Debian, or macOS host. Replace `apt` comma
 
 2. **Clone the repository**
    ```bash
-   git clone https://github.com/<your-org>/final-year-project.git
-   cd final-year-project
+   git clone https://github.com/riaan-attar/raptwin.git
+   cd raptwin
    ```
 
 3. **Create an isolated Python environment and install requirements**
@@ -183,6 +183,8 @@ Jobs can be written in YAML or JSON and validated against `schemas/job.schema.ya
       "stages": [
         {
           "id": "ingest",
+
+          
           "type": "io",
           "size_mb": 40,
           "resources": { "cpu_cores": 1, "ram_gb": 1 },
