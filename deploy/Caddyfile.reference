@@ -1,0 +1,31 @@
+hermes.seloraos.online {
+	reverse_proxy 127.0.0.1:9119
+}
+
+http://80.225.246.130 {
+	root * /srv/straredgex/dist
+	encode gzip zstd
+	try_files {path} /index.html
+	file_server
+}
+
+raptwin.seloraos.online {
+	# Digital Twin API. handle_path strips the /api prefix, matching the
+	# dev-server proxy so the same frontend build works in both places.
+	handle_path /api/* {
+		reverse_proxy 127.0.0.1:8080 {
+			# /api/stream is Server-Sent Events: disable response buffering,
+			# otherwise events would be delivered in batches instead of live.
+			flush_interval -1
+		}
+	}
+
+	# Static SPA. encode lives here rather than at site level so it never
+	# touches the event stream above.
+	handle {
+		encode gzip zstd
+		root * /srv/raptwin/web/dist
+		try_files {path} /index.html
+		file_server
+	}
+}
