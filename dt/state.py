@@ -145,6 +145,10 @@ class DTState:
         # Overrides (raw copies of sim/overrides.json)
         self._overrides: Dict[str, Any] = {"nodes": {}, "links": {}}
         self._overrides_mtime: float = 0.0
+        # Snapshot of what was actually applied to dyn state last time, so we
+        # can detect reverted fields/links and roll them back instead of
+        # leaving stale chaos state (and synthetic links) in place forever.
+        self._overrides_applied: Dict[str, Any] = {"nodes": {}, "links": {}}
 
         # Node/Topology mtimes to allow hot reloads if you want to extend it
         self._nodes_mtime: float = 0.0
@@ -352,39 +356,85 @@ class DTState:
                 print(f"[state] WARN: failed to load overrides.json: {e}")
 
     def _apply_overrides_locked(self):
-        """Merge self._overrides into node/link dyn fields."""
-        # Nodes
-        for nname, changes in self._overrides.get("nodes", {}).items():
+        """Merge self._overrides into node/link dyn fields.
+
+        Applied as a diff against the previously-applied snapshot: when a
+        field disappears from overrides.json (a chaos event reverted), reset
+        it to its default instead of leaving it stuck in the degraded state
+        forever. Ad-hoc links created purely to carry an override (e.g. the
+        N×M mesh a federation_partition chaos event injects between two
+        zones) are dropped entirely once their override clears, instead of
+        accumulating permanently in the topology.
+        """
+        prev = self._overrides_applied
+        current = self._overrides
+
+        node_fields = ("down", "power_cap_w", "thermal_derate", "clock_skew_ms",
+                       "packet_dup", "packet_reorder")
+        node_defaults = NodeDyn().__dict__
+
+        for nname in set(prev.get("nodes", {})) | set(current.get("nodes", {})):
             n = self.nodes_by_name.get(nname)
             if not n:
                 continue
+            changes = current.get("nodes", {}).get(nname, {})
+            prev_changes = prev.get("nodes", {}).get(nname, {})
             dyn = n.setdefault("dyn", NodeDyn().__dict__.copy())
-            # Only accept known fields
-            for k in ("down", "power_cap_w", "thermal_derate", "clock_skew_ms",
-                      "packet_dup", "packet_reorder"):
+            touched = False
+            for k in node_fields:
                 if k in changes:
-                    dyn[k] = changes[k]
-            if any(key in changes for key in ("down", "thermal_derate")):
+                    if dyn.get(k) != changes[k]:
+                        dyn[k] = changes[k]
+                        touched = True
+                elif k in prev_changes and dyn.get(k) != node_defaults.get(k):
+                    dyn[k] = node_defaults.get(k)
+                    touched = True
+            if touched:
                 self._update_predictive_for_node_locked(nname)
 
         # Links
-        for k, changes in self._overrides.get("links", {}).items():
+        link_fields = ("down", "speed_gbps", "rtt_ms", "jitter_ms", "loss_pct", "ecn")
+        link_defaults = LinkDyn().__dict__
+
+        for k in set(prev.get("links", {})) | set(current.get("links", {})):
+            changes = current.get("links", {}).get(k, {})
+            prev_changes = prev.get("links", {}).get(k, {})
             l = self.links_by_key.get(k)
             if not l:
+                if not changes:
+                    continue
                 # Permit ad-hoc links (e.g., node↔node Wi-Fi), create shell
                 parts = k.split("|", 1)
-                if len(parts) == 2:
-                    l = {"a": parts[0], "b": parts[1], "base": {}, "dyn": LinkDyn().__dict__.copy()}
-                    self.links_by_key[k] = l
-                else:
+                if len(parts) != 2:
                     continue
+                l = {"a": parts[0], "b": parts[1], "base": {}, "dyn": LinkDyn().__dict__.copy(), "synthetic": True}
+                self.links_by_key[k] = l
+
+            # NOTE: real topology links can also have an empty `base` (e.g. a
+            # link defined purely via a `profile:` reference), so "ad-hoc"
+            # must be tracked explicitly rather than inferred from `base`.
+            is_adhoc = bool(l.get("synthetic"))
             dyn = l.setdefault("dyn", LinkDyn().__dict__.copy())
-            for kk in ("down", "speed_gbps", "rtt_ms", "jitter_ms", "loss_pct", "ecn"):
+            touched = False
+            for kk in link_fields:
                 if kk in changes:
-                    dyn[kk] = changes[kk]
-            if any(key in changes for key in ("speed_gbps", "rtt_ms", "jitter_ms", "loss_pct", "down")):
+                    if dyn.get(kk) != changes[kk]:
+                        dyn[kk] = changes[kk]
+                        touched = True
+                elif kk in prev_changes and dyn.get(kk) != link_defaults.get(kk):
+                    dyn[kk] = link_defaults.get(kk)
+                    touched = True
+            if touched:
                 self._update_link_predictive_locked(k)
 
+            # Fully-reverted ad-hoc link: stop letting it clutter the topology.
+            if is_adhoc and not changes:
+                self.links_by_key.pop(k, None)
+
+        self._overrides_applied = {
+            "nodes": {name: dict(c) for name, c in current.get("nodes", {}).items()},
+            "links": {key: dict(c) for key, c in current.get("links", {}).items()},
+        }
         self._invalidate_snapshot_locked()
 
     def _emit_event(self, event_type: str, data: Dict[str, Any], subject: Optional[str] = None) -> None:
@@ -718,38 +768,78 @@ class DTState:
         """
         Merge an observation (same shape chaos uses):
         { "action": "apply"|"revert", "payload": {"type": "node"|"link", ...}}
+
+        "apply" payloads carry {"changes": {...}}. "revert" payloads (as sent
+        by sim/chaos.py's OverridesStore) instead carry {"fields": [...]}
+        naming which fields to reset back to their defaults -- without this,
+        a chaos event pushed directly via --dt would apply immediately but
+        its later revert would be silently ignored, leaving nodes/links
+        (and any ad-hoc link a partition event created) degraded forever.
         """
         with self._lock:
             p = payload.get("payload", {})
+            action = (payload.get("action") or "apply").lower()
             typ = p.get("type")
             if typ == "node":
                 node = p.get("node")
-                changes = p.get("changes") or {}
                 target = self.nodes_by_name.get(node)
                 if not target:
                     return
                 dyn = target.setdefault("dyn", NodeDyn().__dict__.copy())
-                for k, v in changes.items():
-                    if k in dyn:
-                        dyn[k] = v
+                if action == "revert":
+                    defaults = NodeDyn().__dict__
+                    fields = p.get("fields") or []
+                    changes = {}
+                    for k in fields:
+                        if k in dyn:
+                            dyn[k] = defaults.get(k)
+                            changes[k] = dyn[k]
+                else:
+                    changes = p.get("changes") or {}
+                    for k, v in changes.items():
+                        if k in dyn:
+                            dyn[k] = v
                 self._update_predictive_for_node_locked(node)
                 self._emit_event("fabric.node.observe", {"node": node, "changes": changes}, subject=node)
             elif typ == "link":
                 k = p.get("key")
-                changes = p.get("changes") or {}
                 link = self.links_by_key.get(k)
-                if not link:
-                    # Create on the fly if key is valid
-                    parts = k.split("|", 1)
-                    if len(parts) == 2:
-                        link = {"a": parts[0], "b": parts[1], "base": {}, "dyn": LinkDyn().__dict__.copy()}
-                        self.links_by_key[k] = link
-                    else:
+                if action == "revert":
+                    if not link:
                         return
-                dyn = link.setdefault("dyn", LinkDyn().__dict__.copy())
-                for kk, vv in changes.items():
-                    if kk in dyn:
-                        dyn[kk] = vv
+                    defaults = LinkDyn().__dict__
+                    fields = p.get("fields") or []
+                    dyn = link.setdefault("dyn", LinkDyn().__dict__.copy())
+                    changes = {}
+                    for kk in fields:
+                        if kk in dyn:
+                            dyn[kk] = defaults.get(kk)
+                            changes[kk] = dyn[kk]
+                    # Drop a fully-reverted ad-hoc link (e.g. one half of a
+                    # federation_partition mesh) instead of leaving a
+                    # permanent, all-default edge cluttering the topology.
+                    # Only compare fields overrides can actually set --
+                    # latency_p95_ms etc. are predictor-derived and never
+                    # part of an override, so they must not block cleanup.
+                    overridable = ("down", "speed_gbps", "rtt_ms", "jitter_ms", "loss_pct", "ecn")
+                    if link.get("synthetic") and all(
+                        dyn.get(field) == defaults.get(field) for field in overridable
+                    ):
+                        self.links_by_key.pop(k, None)
+                else:
+                    changes = p.get("changes") or {}
+                    if not link:
+                        # Create on the fly if key is valid
+                        parts = k.split("|", 1)
+                        if len(parts) == 2:
+                            link = {"a": parts[0], "b": parts[1], "base": {}, "dyn": LinkDyn().__dict__.copy(), "synthetic": True}
+                            self.links_by_key[k] = link
+                        else:
+                            return
+                    dyn = link.setdefault("dyn", LinkDyn().__dict__.copy())
+                    for kk, vv in changes.items():
+                        if kk in dyn:
+                            dyn[kk] = vv
                 self._update_link_predictive_locked(k)
                 self._emit_event("fabric.link.observe", {"link": k, "changes": changes}, subject=k)
         self._invalidate_snapshot_locked()
@@ -1131,6 +1221,17 @@ class DTState:
     def recent_events(self, limit: int = 100, since_id: Optional[str] = None) -> List[Dict[str, Any]]:
         events = self._events.recent(limit=limit, since_id=since_id)
         return [dict(evt) for evt in events]
+
+    def subscribe_events(self):
+        """Register a live event listener; returns a Queue of CloudEvents."""
+        return self._events.subscribe()
+
+    def unsubscribe_events(self, q) -> None:
+        self._events.unsubscribe(q)
+
+    def emit_event(self, event_type: str, data: Dict[str, Any], subject: Optional[str] = None) -> None:
+        """Public wrapper so API/controllers can publish without touching internals."""
+        self._emit_event(event_type, data, subject=subject)
 
     def predictive_overview(self) -> Dict[str, Any]:
         with self._lock:

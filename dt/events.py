@@ -4,11 +4,12 @@
 from __future__ import annotations
 
 import datetime
+import queue
 import threading
 import time
 import uuid
 from collections import deque
-from typing import Any, Deque, Dict, Iterable, Optional
+from typing import Any, Deque, Dict, Iterable, List, Optional
 
 
 def build_cloudevent(
@@ -39,15 +40,40 @@ def build_cloudevent(
 
 
 class EventBus:
-    """Thread-safe in-memory event buffer."""
+    """Thread-safe in-memory event buffer with fan-out to live subscribers."""
 
     def __init__(self, maxlen: int = 256):
         self._events: Deque[Dict[str, Any]] = deque(maxlen=maxlen)
         self._lock = threading.Lock()
+        self._subscribers: List["queue.Queue[Dict[str, Any]]"] = []
 
     def emit(self, event: Dict[str, Any]) -> None:
         with self._lock:
             self._events.append(event)
+            subscribers = list(self._subscribers)
+        # Fan out outside the lock; a slow consumer must not stall the twin.
+        for q in subscribers:
+            try:
+                q.put_nowait(event)
+            except queue.Full:
+                pass
+
+    def subscribe(self, maxsize: int = 512) -> "queue.Queue[Dict[str, Any]]":
+        """Register a live listener (used by the SSE endpoint)."""
+        q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=maxsize)
+        with self._lock:
+            self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: "queue.Queue[Dict[str, Any]]") -> None:
+        with self._lock:
+            if q in self._subscribers:
+                self._subscribers.remove(q)
+
+    @property
+    def subscriber_count(self) -> int:
+        with self._lock:
+            return len(self._subscribers)
 
     def recent(self, *, limit: int = 50, since_id: Optional[str] = None) -> Iterable[Dict[str, Any]]:
         with self._lock:

@@ -520,6 +520,8 @@ textarea:focus, input:focus { border-color: #3a5575; }
 .link { stroke: #243140; stroke-width: 1.8px; stroke-linecap: round; opacity: 0.9; transition: stroke 0.6s ease, stroke-width 0.6s ease; }
 .link.degraded { stroke: #f39c12; stroke-width: 2.4px; }
 .link.down { stroke: #e74c3c; stroke-width: 2.6px; opacity: 0.95; }
+.link.zone-link { stroke-dasharray: 2 3; opacity: 0.45; }
+.link.backbone-link { stroke-dasharray: 6 4; opacity: 0.85; }
 .legend-dot.spark { box-shadow: 0 0 12px rgba(79,180,255,0.4); }
 footer { color: var(--muted2); text-align: center; padding: 12px; }
 hr { border: none; border-top: 1px solid #1f2a39; margin: 12px 0; }
@@ -591,6 +593,8 @@ hr { border: none; border-top: 1px solid #1f2a39; margin: 12px 0; }
       <span><span class="legend-dot fallback"></span> fallback-ready</span>
       <span><span class="legend-dot assignment"></span> latest plan assignment</span>
       <span><span class="legend-dot lossy"></span> lossy / degraded link</span>
+      <span>┄┄ same-zone grouping</span>
+      <span>╍╍ zone-to-zone backbone</span>
     </div>
   </div>
 
@@ -772,6 +776,7 @@ let SNAP = null;
 let LAST_PLAN = null;
 let TOPO_SIM = null;
 let TOPO_RESIZE = null;
+let TOPO_POSITIONS = new Map();
 let JOB_CATALOG = [];
 let JOB_SELECTED = null;
 
@@ -1061,6 +1066,14 @@ function renderTopology() {
     wrap.innerHTML = '<div class="small">No topology data yet.</div>';
     return;
   }
+
+  // Remember where nodes were sitting so the layout doesn't jump on every refresh.
+  if (TOPO_SIM) {
+    TOPO_SIM.nodes().forEach(n => {
+      TOPO_POSITIONS.set(n.id, { x: n.x, y: n.y, vx: n.vx, vy: n.vy, fx: n.fx, fy: n.fy });
+    });
+  }
+
   wrap.classList.remove('topology-refresh');
   void wrap.offsetWidth;
   wrap.classList.add('topology-refresh');
@@ -1122,6 +1135,20 @@ function renderTopology() {
     };
   });
 
+  let seededCount = 0;
+  nodes.forEach(n => {
+    const prev = TOPO_POSITIONS.get(n.id);
+    if (!prev) return;
+    if (typeof prev.x === 'number') n.x = prev.x;
+    if (typeof prev.y === 'number') n.y = prev.y;
+    if (typeof prev.vx === 'number') n.vx = prev.vx;
+    if (typeof prev.vy === 'number') n.vy = prev.vy;
+    if (typeof prev.fx === 'number') n.fx = prev.fx;
+    if (typeof prev.fy === 'number') n.fy = prev.fy;
+    seededCount++;
+  });
+  const isWarmStart = seededCount > 0;
+
   const lookup = new Map(nodes.map(n => [n.id, n]));
   const links = (SNAP.links || [])
     .filter(l => lookup.has(l.a) && lookup.has(l.b))
@@ -1130,6 +1157,7 @@ function renderTopology() {
       return {
         source: l.a,
         target: l.b,
+        kind: 'real',
         down: Boolean(eff.down),
         speed: Number(eff.speed_gbps || 0),
         loss: Number(eff.loss_pct || 0),
@@ -1138,6 +1166,60 @@ function renderTopology() {
         key: l.key,
       };
     });
+
+  // The topology YAML only models site/region-level links (names like
+  // "site-lab") which rarely match any actually-generated device, so the
+  // real link list above is usually empty and nodes would render as
+  // disconnected dots. Every node always carries a zone/federation label
+  // though, so use that to draw a light "same zone" ring per federation,
+  // plus a backbone ring connecting one representative node per zone to the
+  // next -- giving a legible, always-connected topology instead of nothing.
+  const byFed = new Map();
+  nodes.forEach(n => {
+    const fed = n.federation || '—';
+    if (!byFed.has(fed)) byFed.set(fed, []);
+    byFed.get(fed).push(n);
+  });
+
+  byFed.forEach(members => {
+    if (members.length < 2) return;
+    const ordered = [...members].sort((a, b) => a.id.localeCompare(b.id));
+    for (let i = 0; i < ordered.length; i++) {
+      const a = ordered[i];
+      const b = ordered[(i + 1) % ordered.length];
+      links.push({
+        source: a.id, target: b.id, kind: 'zone',
+        down: false, speed: 8, loss: 0, rtt: 1, jitter: 0,
+        key: `zone:${a.id}~${b.id}`,
+      });
+    }
+  });
+
+  const fedLinkLookup = new Map();
+  (SNAP.federation_links || []).forEach(fl => {
+    if (fl.a && fl.b) fedLinkLookup.set([fl.a, fl.b].sort().join('~'), fl);
+  });
+
+  const fedNames = [...byFed.keys()].filter(f => f && f !== '—').sort();
+  for (let i = 0; i < fedNames.length; i++) {
+    const fedA = fedNames[i];
+    const fedB = fedNames[(i + 1) % fedNames.length];
+    if (fedA === fedB) continue;
+    const repA = byFed.get(fedA).slice().sort((a, b) => a.id.localeCompare(b.id))[0];
+    const repB = byFed.get(fedB).slice().sort((a, b) => a.id.localeCompare(b.id))[0];
+    if (!repA || !repB) continue;
+    const summary = fedLinkLookup.get([fedA, fedB].sort().join('~'));
+    links.push({
+      source: repA.id, target: repB.id, kind: 'backbone',
+      down: summary ? Number(summary.down_links || 0) > 0 : false,
+      speed: summary && summary.min_speed_gbps != null ? Number(summary.min_speed_gbps) : 2,
+      loss: summary && summary.max_loss_pct != null ? Number(summary.max_loss_pct) : 0,
+      rtt: summary && summary.avg_rtt_ms != null ? Number(summary.avg_rtt_ms) : 5,
+      jitter: 0,
+      key: `backbone:${fedA}~${fedB}`,
+      fedA, fedB,
+    });
+  }
 
   const width = wrap.clientWidth || 720;
   const height = Math.max(360, Math.min(760, 180 + nodes.length * 14));
@@ -1151,10 +1233,15 @@ function renderTopology() {
 
   const g = svg.append('g');
 
-  const linkWidth = l => 1.5 + Math.log1p(Math.max(0.2, l.speed));
+  const linkWidth = l => {
+    if (l.kind === 'zone') return 1;
+    return 1.5 + Math.log1p(Math.max(0.2, l.speed));
+  };
   const linkColor = l => {
+    if (l.kind === 'zone') return '#2c3f57';
     if (l.down) return '#e74c3c';
     if (l.loss >= 2.0 || l.jitter >= 2.0) return '#f39c12';
+    if (l.kind === 'backbone') return '#4c8fc9';
     return '#2c3f57';
   };
 
@@ -1165,20 +1252,26 @@ function renderTopology() {
     .enter()
     .append('line')
     .attr('class', d => {
-      if (d.down) return 'link down';
+      if (d.down) return d.kind === 'zone' ? 'link zone-link down' : 'link down';
       if (d.loss >= 2.0 || d.jitter >= 2.0) return 'link degraded';
+      if (d.kind === 'zone') return 'link zone-link';
+      if (d.kind === 'backbone') return 'link backbone-link';
       return 'link';
     })
     .attr('stroke', linkColor)
     .attr('stroke-width', linkWidth);
 
   link.append('title').text(l => {
+    if (l.kind === 'zone') {
+      return `${l.source} ↔ ${l.target}\nsame zone/federation (grouping only, not a physical link)`;
+    }
     const parts = [
       `${l.source} ↔ ${l.target}`,
+      l.kind === 'backbone' ? `zone backbone: ${l.fedA} ↔ ${l.fedB}` : null,
       `speed: ${fmt(l.speed, 2)} Gbps`,
       `rtt: ${fmt(l.rtt, 1)} ms`,
       `loss: ${fmt(l.loss, 2)} %`,
-    ];
+    ].filter(Boolean);
     if (l.down) parts.push('status: DOWN');
     return parts.join('\n');
   });
@@ -1200,6 +1293,8 @@ function renderTopology() {
 
   const simulation = d3
     .forceSimulation(nodes)
+    .alpha(isWarmStart ? 0.3 : 1)
+    .alphaDecay(isWarmStart ? 0.08 : 0.0228)
     .force(
       'link',
       d3
@@ -1358,10 +1453,11 @@ function renderPlanGraph() {
   wrap.insertAdjacentHTML('beforeend', `<div class="small" style="margin-top:6px;">Latency ${fmt(LAST_PLAN.latency_ms,1)} ms • Energy ${fmt(LAST_PLAN.energy_kj,3)} kJ • Risk ${fmt(LAST_PLAN.risk,3)}${spreadStr}${resilienceStr}${reliabilityStr}</div>`);
 }
 
-function renderPlans() {
+async function renderPlans() {
   const tb = document.getElementById('plans_tbody');
   tb.innerHTML = '';
-  fetchJSON('/api/plans').then(data => {
+  try {
+    const data = await fetchJSON('/api/plans');
     LAST_PLAN = data.length ? data[0] : null;
     data.forEach(p => {
       const stages = (p.per_stage||[]).map(s => {
@@ -1416,29 +1512,24 @@ function renderPlans() {
         </tr>
       `);
     });
-    renderPlanGraph();
-    renderTopology();
-    renderOverview();
-  }).catch(e => {
+  } catch (e) {
     tb.innerHTML = `<tr><td colspan="9" class="small">No plans yet.</td></tr>`;
     LAST_PLAN = null;
-    renderPlanGraph();
-    renderTopology();
-    renderOverview();
-  });
+  }
+  renderPlanGraph();
 }
 
 async function refresh() {
   try {
     const data = await fetchJSON('/api/snapshot');
     SNAP = data;
+    await renderPlans();
     renderOverview();
     renderNodes();
     renderLinks();
     renderFederations();
     renderFederationLinks();
     renderTopology();
-    renderPlans();
   } catch (e) {
     console.error(e);
     alert('Failed to refresh snapshot: '+e.message);
