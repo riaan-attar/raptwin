@@ -1,0 +1,29 @@
+[Unit]
+Description=RAP Twin Digital Twin API
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/srv/raptwin
+# Single worker on purpose: DTState (reservations, overrides, event bus) lives
+# in-process, so multiple workers would each hold a divergent copy of the twin.
+# Threads carry concurrency, and each open SSE stream occupies one for its life.
+ExecStart=/srv/raptwin/.venv/bin/gunicorn \
+    --workers 1 \
+    --threads 24 \
+    --worker-class gthread \
+    --timeout 0 \
+    --graceful-timeout 10 \
+    --bind 127.0.0.1:8080 \
+    --access-logfile - \
+    --error-logfile - \
+    dt.api:app
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+Environment=HOME=/home/ubuntu
+Environment=FABRIC_ENABLE_NOISE=0
+
+[Install]
+WantedBy=multi-user.target
