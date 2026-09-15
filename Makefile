@@ -41,6 +41,8 @@ UI_PORT  ?= 8090
 NODES_DIR ?= nodes
 JOBS_FILE ?= jobs/jobs_10.yaml
 TOPO_FILE ?= sim/topology.yaml
+WEB_DIR   ?= web
+NPM       ?= npm
 POLICY_JOBS ?= $(JOBS_FILE)
 POLICY_STRATEGIES ?= greedy bandit rl-markov
 POLICY_PLOT ?= reports/policy_metrics.png
@@ -51,13 +53,18 @@ POLICY_LIMIT ?= 6
 .PHONY: help install venv deps freeze clean format lint \
         run-api run-ui gen-nodes validate-nodes summarize-nodes export-csv \
         plan policy-benchmark demo montecarlo chaos \
-        docker-launch docker-clean
+        docker-launch docker-clean \
+        web-install web-dev web-build web-preview web-check
 
 help:
 	@echo Targets:
 	@echo   install          - create venv and install requirements
 	@echo   run-api          - start DT API at http://$(API_HOST):$(API_PORT)
-	@echo   run-ui           - start Dashboard at http://$(UI_HOST):$(UI_PORT)
+	@echo   run-ui           - start legacy Flask dashboard at http://$(UI_HOST):$(UI_PORT)
+	@echo   web-install      - install Node frontend deps in $(WEB_DIR)/
+	@echo   web-dev          - start the React/Vite dashboard on :5173
+	@echo   web-build        - production build into $(WEB_DIR)/dist
+	@echo   web-preview      - build then serve the production bundle on :4173
 	@echo   gen-nodes        - synthesize 100 realistic nodes into $(NODES_DIR)/
 	@echo   validate-nodes   - validate nodes/*.yaml against schema
 	@echo   summarize-nodes  - print inventory table
@@ -166,6 +173,22 @@ run-api:
 
 run-ui:
 	$(ACT) $(SEP) FABRIC_DT_REMOTE=http://$(API_HOST):$(API_PORT) FABRIC_UI_HOST=$(UI_HOST) FABRIC_UI_PORT=$(UI_PORT) $(PY) -m ui.dashboard
+
+# ---------- Node frontend (web/) ----------
+web-install:
+	cd $(WEB_DIR) && $(NPM) install
+
+web-dev:
+	cd $(WEB_DIR) && FABRIC_DT_REMOTE=http://$(API_HOST):$(API_PORT) $(NPM) run dev
+
+web-build:
+	cd $(WEB_DIR) && $(NPM) run build
+
+web-preview: web-build
+	cd $(WEB_DIR) && FABRIC_DT_REMOTE=http://$(API_HOST):$(API_PORT) $(NPM) run preview
+
+web-check:
+	cd $(WEB_DIR) && npx tsc -b
 
 gen-nodes:
 	$(ACT) $(SEP) $(PY) -m sim.gen_nodes --out-dir $(NODES_DIR) --count 100

@@ -1,7 +1,7 @@
 # RAP twin: Project Analysis, Problem Statement, and Solution
 
 ## Project Overview
-**RAP twin** (formerly Fabric Digital Twin Simulator) is a high-fidelity digital-twin and planning sandbox designed for distributed computing fabrics. It enables researchers and engineers to experiment with job placement, scheduling policies, and performance analytics in a safe, simulated environment that mirrors real-world complexities.
+**RAP twin** is a high-fidelity digital-twin and planning sandbox designed for distributed computing fabrics. It enables researchers and engineers to experiment with job placement, scheduling policies, and performance analytics in a safe, simulated environment that mirrors real-world complexities.
 
 ---
 

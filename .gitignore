@@ -78,3 +78,15 @@ dmypy.json
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Node frontend
+web/node_modules/
+web/dist/
+
+# Runtime artifacts produced by the simulator
+sim/overrides.json
+sim/rl_state.json
+sim/bandit_state.json
+sim/montecarlo_results.csv
+plans/
+reports/

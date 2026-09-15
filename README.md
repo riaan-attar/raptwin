@@ -72,6 +72,8 @@ Once dependencies are installed and the virtual environment is active, you can l
 
 ### Digital Twin API (`dt/api.py`)
 Exposes `/snapshot`, `/plan`, `/plan_batch`, `/release`, and `/observe` endpoints while keeping node/link state, reservations, and overrides in sync.
+
+`/stream` additionally serves the twin's CloudEvent bus as Server-Sent Events, so clients can react the moment state changes instead of polling. `GET /plans` returns a slimmed history (the full `predictive`/`federation_summary` blobs stay on the `POST /plan` response and in `/snapshot`).
 ```bash
 python -m dt.api --host 0.0.0.0 --port 8080 --debug
 ```
@@ -80,7 +82,16 @@ python -m dt.api --host 0.0.0.0 --port 8080 --debug
 - `--port`: HTTP port (default `8080`).
 - `--debug`: Enables Flask debug/auto-reload.
 
-### Dashboard UI (`ui/dashboard.py`)
+### Web dashboard (`web/`) — recommended
+A React + TypeScript + Vite single-page app that talks directly to the Digital Twin API. It supersedes the legacy Flask dashboard below.
+```bash
+python -m dt.api --host 127.0.0.1 --port 8080   # terminal 1
+make web-install                                # once
+make web-dev                                    # terminal 2 → http://localhost:5173
+```
+It proxies `/api` to `$FABRIC_DT_REMOTE` (default `http://127.0.0.1:8080`), so no CORS setup is needed. See [`web/README.md`](web/README.md) for the panel list, topology model, and the headless verification scripts.
+
+### Legacy dashboard UI (`ui/dashboard.py`)
 A single-file Flask app that renders topology maps, job history, chaos overrides, and provides a JSON editor for submitting plans.
 ```bash
 python -m ui.dashboard --host 0.0.0.0 --port 8090 --remote http://127.0.0.1:8080

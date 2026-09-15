@@ -31,7 +31,9 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional
 
-from flask import Flask, jsonify, request
+from queue import Empty
+
+from flask import Flask, Response, jsonify, request
 
 from .state import DTState, safe_float, safe_int
 from .cost_model import CostModel
@@ -124,6 +126,9 @@ NOISE_INJECTOR = maybe_start_noise(STATE)
 
 RECENT_PLANS: Deque[Dict[str, Any]] = deque(maxlen=200)
 
+# How long an idle SSE connection waits before emitting a keepalive comment.
+SSE_KEEPALIVE_SEC = safe_float(os.environ.get("FABRIC_SSE_KEEPALIVE", 15.0), 15.0)
+
 app = Flask(__name__)
 
 
@@ -168,6 +173,29 @@ def _load_job_catalog() -> List[Dict[str, Any]]:
                 }
             )
     return entries
+
+
+def _slim_plan_for_history(plan: Dict[str, Any]) -> Dict[str, Any]:
+    """Strip whole-fabric snapshots before a plan goes into RECENT_PLANS.
+
+    ``predictive`` and ``federation_summary`` are point-in-time copies of the
+    entire fabric (~70KB each), so keeping them on every one of the 200 plans
+    in the ring buffer made GET /plans grow into the megabytes. Callers of
+    POST /plan still get the full payload; the live values for those fields are
+    available from /snapshot anyway. ``candidate_details`` is likewise a
+    per-stage dump of every node the MDP planner scored.
+    """
+
+    slim = {k: v for k, v in plan.items() if k not in ("predictive", "federation_summary")}
+    stages = slim.get("per_stage")
+    if isinstance(stages, list):
+        slim["per_stage"] = [
+            {k: v for k, v in stage.items() if k != "candidate_details"}
+            if isinstance(stage, dict)
+            else stage
+            for stage in stages
+        ]
+    return slim
 
 
 def _ensure_jobs(obj: Any) -> List[Dict[str, Any]]:
@@ -278,7 +306,22 @@ def plan():
                 planner_result["self_healing_registered"] = True
             except Exception:
                 app.logger.exception("failed to register plan with self-healer")
-        RECENT_PLANS.appendleft(planner_result)
+        RECENT_PLANS.appendleft(_slim_plan_for_history(planner_result))
+        # Announce on the event bus so live clients refresh without polling.
+        try:
+            STATE.emit_event(
+                "fabric.plan.committed",
+                {
+                    "job_id": planner_result.get("job_id"),
+                    "strategy": strategy_raw,
+                    "dry_run": dry_run,
+                    "infeasible": bool(planner_result.get("infeasible")),
+                    "latency_ms": planner_result.get("latency_ms"),
+                },
+                subject=str(planner_result.get("job_id") or "job"),
+            )
+        except Exception:
+            app.logger.exception("failed to emit plan event")
         return _ok(planner_result)
     except Exception:
         app.logger.exception("/plan failed")
@@ -293,6 +336,50 @@ def plans():
 @app.get("/jobs")
 def jobs():
     return _ok(_load_job_catalog())
+
+
+@app.get("/stream")
+def stream():
+    """Server-Sent Events feed of the twin's CloudEvent bus.
+
+    Lets clients react the moment state changes instead of polling /snapshot.
+    Each message carries the CloudEvent as JSON; clients decide what to refetch.
+    """
+
+    def generate():
+        q = STATE.subscribe_events()
+        try:
+            # Prime the connection so the browser fires onopen immediately.
+            yield "retry: 3000\n\n"
+            yield ": connected\n\n"
+            while True:
+                try:
+                    evt = q.get(timeout=SSE_KEEPALIVE_SEC)
+                except Empty:
+                    # Comment frame keeps proxies/browsers from timing out.
+                    yield ": keepalive\n\n"
+                    continue
+                payload = json.dumps(evt, default=str)
+                # Deliberately no "event:" line: named SSE events bypass
+                # EventSource.onmessage, so a client would silently miss any
+                # type it had not explicitly subscribed to. The CloudEvent
+                # carries its own "type" field in the payload instead.
+                yield f"id: {evt.get('id', '')}\ndata: {payload}\n\n"
+        except GeneratorExit:
+            raise
+        finally:
+            STATE.unsubscribe_events(q)
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            # Disable proxy buffering (nginx and friends) so frames arrive live.
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.get("/events")
@@ -422,7 +509,9 @@ def main():
     )
     ap.add_argument("--debug", action="store_true")
     args = ap.parse_args()
-    app.run(host=args.host, port=args.port, debug=args.debug)
+    # threaded=True is required: an open SSE stream holds a worker for its
+    # lifetime, so a single-threaded server would stop answering everything else.
+    app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
 
 
 if __name__ == "__main__":
