@@ -1,5 +1,5 @@
 import type { PlanResult, Snapshot } from '../api/types'
-import { fmtPct, fmtTime } from '../lib/format'
+import { fmtCo2, fmtMoney, fmtPct, fmtTime } from '../lib/format'
 import { Card, Kpi } from './ui/primitives'
 
 export function Overview({
@@ -54,6 +54,11 @@ export function Overview({
           label="Fallback coverage"
           value={lastPlan?.resilience_score != null ? fmtPct(lastPlan.resilience_score) : '—'}
         />
+        <Kpi
+          label="Plan cost"
+          value={fmtMoney(lastPlan?.cost_total, lastPlan?.currency ?? snapshot?.economics?.currency)}
+        />
+        <Kpi label="Plan CO₂" value={fmtCo2(lastPlan?.co2_g)} />
         <Kpi label="Last snapshot" value={fmtTime(snapshot?.ts)} />
       </div>
     </Card>

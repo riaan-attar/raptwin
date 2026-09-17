@@ -41,6 +41,7 @@ Notes
 """
 from __future__ import annotations
 
+from dt.economics import Economics, crosses_site
 from dt.policy.rl_stub import RLPolicy
 RL = RLPolicy(persist_path="sim/rl_state.json")
 from typing import Any, Dict, List, Optional, Tuple
@@ -66,6 +67,10 @@ except Exception:  # pragma: no cover
     BanditPolicy = None  # type: ignore
 
 
+#: How much latency (ms) the cost objective trades per unit of currency of
+#: one-off egress. Rental/power enter the score as per-hour rates instead.
+EGRESS_TRADE_MS = 1000.0
+
 DEFAULT_CFG = {
     # scoring = compute_ms + xfer_ms + risk_weight*risk + energy_weight*energy_kj
     "risk_weight": 10.0,          # converts 0..1 risk → "ms-like" penalty
@@ -76,6 +81,10 @@ DEFAULT_CFG = {
     "churn_penalty_ms": 250.0,
     "stickiness_weight": 0.75,
     "redundancy": 1,
+    # Money/carbon objectives (see dt/economics.py). Both are 0 by default so
+    # the latency-first behaviour of existing strategies is unchanged.
+    "cost_weight": 0.0,           # ms traded per unit of currency per hour
+    "carbon_weight": 0.0,         # ms traded per gram of CO2 per hour
 }
 
 
@@ -116,6 +125,8 @@ class GreedyPlanner:
         self.cm = cost_model
         self.bandit = bandit
         self.cfg = {**DEFAULT_CFG, **(cfg or {})}
+        self._econ_cache: Optional[Economics] = None
+        self._econ_defaults: Optional[Dict[str, Any]] = None
 
     # --------- core scoring ---------
 
@@ -141,6 +152,8 @@ class GreedyPlanner:
         prefer_locality_bonus_ms: float,
         risk_weight: float,
         energy_weight: float,
+        cost_weight: float,
+        carbon_weight: float,
         require_format_match: bool,
         reliability_weight: float,
         churn_penalty_ms: float,
@@ -167,6 +180,26 @@ class GreedyPlanner:
         energy  = self.cm.energy_kj(stage_eval, node, comp_ms)
         risk    = self.cm.risk_score(stage_eval, node)
 
+        # Money/carbon only when a strategy actually optimises for them, so the
+        # default latency path keeps its cost per candidate unchanged.
+        money = carbon = 0.0
+        if cost_weight or carbon_weight:
+            econ = self._economics()
+            rates = econ.stage_rate(
+                node=node,
+                stage=stage,
+                compute_ms=comp_ms,
+                energy_kj=energy,
+                fmt=fmt_override,
+            )
+            # Rates (per hour) discriminate between nodes; egress is a one-off
+            # charge, valued here at EGRESS_TRADE_MS per unit of currency.
+            egress = 0.0
+            if crosses_site(self.state, prev_node, node_name):
+                egress = (safe_float(stage.get("size_mb"), 0.0) / 1024.0) * econ.egress_gb
+            money = rates["cost_per_hour"] + egress * EGRESS_TRADE_MS
+            carbon = rates["co2_g_per_hour"]
+
         reliability = None
         availability = None
         try:
@@ -188,7 +221,14 @@ class GreedyPlanner:
                 churn_penalty += churn_penalty_ms * (1.0 - max(0.0, availability) / 120.0)
 
         # Greedy score
-        score = comp_ms + xfer_ms + risk_weight * risk + energy_weight * energy + risk_penalty + churn_penalty
+        score = (
+            comp_ms + xfer_ms
+            + risk_weight * risk
+            + energy_weight * energy
+            + cost_weight * money
+            + carbon_weight * carbon
+            + risk_penalty + churn_penalty
+        )
 
         # Locality preference (keep stages on same node if ties)
         if prev_node and prev_node == node_name and prefer_locality_bonus_ms > 0:
@@ -207,6 +247,14 @@ class GreedyPlanner:
             "score": round(score, 3),
         }
         return score, metrics
+
+    def _economics(self) -> Economics:
+        """Rebuilt when topology defaults change (topology.yaml hot-reloads)."""
+        defaults = getattr(self.state, "defaults", None) or {}
+        if self._econ_cache is None or self._econ_defaults is not defaults:
+            self._econ_cache = Economics.from_defaults(defaults)
+            self._econ_defaults = defaults
+        return self._econ_cache
 
     # --------- public: plan a job ---------
 
@@ -227,6 +275,8 @@ class GreedyPlanner:
 
         risk_w   = float(self.cfg["risk_weight"])
         energy_w = float(self.cfg["energy_weight"])
+        cost_w   = float(self.cfg.get("cost_weight", 0.0))
+        carbon_w = float(self.cfg.get("carbon_weight", 0.0))
         loc_bonus = float(self.cfg["prefer_locality_bonus_ms"])
         require_fmt = bool(self.cfg["require_format_match"])
         reliability_weight = float(self.cfg.get("reliability_weight", 0.0))
@@ -267,6 +317,8 @@ class GreedyPlanner:
                     prefer_locality_bonus_ms=loc_bonus,
                     risk_weight=risk_w,
                     energy_weight=energy_w,
+                    cost_weight=cost_w,
+                    carbon_weight=carbon_w,
                     require_format_match=require_fmt,
                     reliability_weight=reliability_weight,
                     churn_penalty_ms=churn_penalty_ms,

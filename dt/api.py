@@ -8,6 +8,7 @@ Endpoints
 GET  /health
 GET  /snapshot
 POST /observe            { payload: {type: "node"|"link", ...} }
+GET  /economics          pricing + carbon intensity in force
 POST /plan               { job: {...}, dry_run?: bool, strategy?: "greedy"|"cheapest-energy" }
 POST /plan_batch         { jobs: [ {...}, ... ], dry_run?: bool, strategy?: ... }
 POST /release            { releases: [ {node: "...", reservation_id: "..."} ] }
@@ -52,6 +53,7 @@ from queue import Empty
 from flask import Flask, Response, jsonify, request
 
 from .chaos_runner import ChaosRunner
+from .economics import Economics, annotate_plan
 from .state import DTState, link_key, safe_float, safe_int, valid_name
 from .cost_model import CostModel
 from .exporters import as_dtdl, as_k8s_crds
@@ -119,6 +121,35 @@ GREEDY_BANDIT = GreedyPlanner(
     cfg={
         "risk_weight": 10.0,
         "energy_weight": 0.0,
+        "prefer_locality_bonus_ms": 0.5,
+        "require_format_match": False,
+    },
+)
+
+# Money/carbon objectives. Weights are "ms of latency traded per unit of
+# currency per hour" and "per gram of CO2 per hour"; 25 was calibrated against
+# the sample fabric, where candidate nodes differ by ~2-6 gCO2/hr for ~25 ms of
+# compute. See dt/economics.py.
+GREEDY_COST = GreedyPlanner(
+    STATE,
+    CM,
+    bandit=None,
+    cfg={
+        "risk_weight": 10.0,
+        "energy_weight": 0.0,
+        "cost_weight": safe_float(os.environ.get("FABRIC_COST_WEIGHT", 25.0), 25.0),
+        "prefer_locality_bonus_ms": 0.5,
+        "require_format_match": False,
+    },
+)
+GREEDY_CARBON = GreedyPlanner(
+    STATE,
+    CM,
+    bandit=None,
+    cfg={
+        "risk_weight": 10.0,
+        "energy_weight": 0.0,
+        "carbon_weight": safe_float(os.environ.get("FABRIC_CARBON_WEIGHT", 25.0), 25.0),
         "prefer_locality_bonus_ms": 0.5,
         "require_format_match": False,
     },
@@ -395,6 +426,10 @@ def plan():
         else:
             if strategy in {"cheapest-energy", "energy", "energy-aware"}:
                 planner_obj = GREEDY_ENERGY
+            elif strategy in {"cheapest-cost", "cost", "cost-aware", "cheapest"}:
+                planner_obj = GREEDY_COST
+            elif strategy in {"greenest", "low-carbon", "carbon", "carbon-aware"}:
+                planner_obj = GREEDY_CARBON
             elif strategy in {"bandit", "bandit-greedy", "bandit-latency", "bandit-format"}:
                 planner_obj = GREEDY_BANDIT if GREEDY_BANDIT is not None else GREEDY_LATENCY
             else:
@@ -415,6 +450,8 @@ def plan():
         planner_result["ts"] = int(time.time() * 1000)
         planner_result.setdefault("avg_reliability", planner_result.get("avg_reliability"))
         planner_result["predictive"] = STATE.predictive_overview()
+        # Money and carbon for every strategy, not just the cost-aware ones.
+        annotate_plan(STATE, job, planner_result)
         planner_result["self_healing_registered"] = False
         if not dry_run:
             try:
@@ -631,6 +668,29 @@ def delete_node(name: str):
     for rid in dropped:
         SELF_HEALER.forget_reservation(rid)
     return _ok({"node": name, "dropped_reservations": dropped})
+
+
+@app.get("/economics")
+def economics():
+    econ = Economics.from_state(STATE)
+    return _ok(
+        {
+            "currency": econ.currency,
+            "priced": econ.priced,
+            "pricing": {
+                "cpu_core_hour": econ.cpu_core_hour,
+                "gpu_hour": econ.gpu_hour,
+                "npu_hour": econ.npu_hour,
+                "memory_gb_hour": econ.memory_gb_hour,
+                "egress_gb": econ.egress_gb,
+            },
+            "energy": {
+                "price_per_kwh": econ.price_per_kwh,
+                "grid_co2_g_per_kwh": econ.grid_co2_g_per_kwh,
+            },
+            "zones": econ.zones,
+        }
+    )
 
 
 @app.get("/topology")

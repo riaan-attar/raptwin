@@ -41,3 +41,22 @@ export function fmtDateTime(ms: unknown): string {
 export function cn(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ')
 }
+
+/** Money in the fabric's currency. Small amounts keep more decimals. */
+export function fmtMoney(value: unknown, currency = ''): string {
+  if (value === null || value === undefined) return '—'
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '—'
+  const digits = Math.abs(n) >= 1 ? 2 : Math.abs(n) >= 0.01 ? 3 : 4
+  return `${currency ? `${currency} ` : ''}${n.toFixed(digits)}`
+}
+
+/** Grams of CO2, switching to kg once it gets large. */
+export function fmtCo2(value: unknown): string {
+  if (value === null || value === undefined) return '—'
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '—'
+  if (n >= 1000) return `${(n / 1000).toFixed(2)} kg`
+  if (n >= 1) return `${n.toFixed(1)} g`
+  return `${n.toFixed(3)} g`
+}

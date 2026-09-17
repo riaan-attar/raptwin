@@ -1,5 +1,5 @@
 import type { PlanResult } from '../api/types'
-import { fmt, fmtPct } from '../lib/format'
+import { fmt, fmtCo2, fmtMoney, fmtPct } from '../lib/format'
 import { Badge, Card, EmptyRow, Mono, TableShell, Tag, Td, Th } from './ui/primitives'
 
 function latency(value: number | undefined): string {
@@ -31,6 +31,8 @@ export function RecentPlans({
             <Th>Job</Th>
             <Th>Latency (ms)</Th>
             <Th>Energy (kJ)</Th>
+            <Th>Cost</Th>
+            <Th>CO₂</Th>
             <Th>Risk</Th>
             <Th>Reliability</Th>
             <Th>Spread</Th>
@@ -40,7 +42,7 @@ export function RecentPlans({
         }
         empty={
           rows.length === 0 ? (
-            <EmptyRow colSpan={8}>
+            <EmptyRow colSpan={10}>
               No plans yet. Submit one from the Plan a Job panel.
             </EmptyRow>
           ) : undefined
@@ -64,6 +66,8 @@ export function RecentPlans({
             </Td>
             <Td>{latency(p.latency_ms)}</Td>
             <Td>{fmt(p.energy_kj, 3)}</Td>
+            <Td>{fmtMoney(p.cost_total, p.currency)}</Td>
+            <Td>{fmtCo2(p.co2_g)}</Td>
             <Td>{fmt(p.risk, 3)}</Td>
             <Td>{p.avg_reliability != null ? fmt(p.avg_reliability) : '—'}</Td>
             <Td>
