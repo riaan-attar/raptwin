@@ -12,6 +12,21 @@ POST /plan               { job: {...}, dry_run?: bool, strategy?: "greedy"|"chea
 POST /plan_batch         { jobs: [ {...}, ... ], dry_run?: bool, strategy?: ... }
 POST /release            { releases: [ {node: "...", reservation_id: "..."} ] }
 
+Management (used by the web dashboard)
+GET    /nodes/<name>              full descriptor as stored in nodes/<name>.yaml
+POST   /add_node                  { node: {...} } create or update (persisted)
+DELETE /nodes/<name>              remove node, its YAML and its reservations
+GET    /topology                  declared links, link profiles, sites
+POST   /links                     { link: {a, b, profile?, speed_gbps?, ...} }
+DELETE /links?key=A|B
+POST   /jobs                      { job: {...}, original_id?: "..." }
+DELETE /jobs?id=...
+DELETE /plans                     clear plan history
+GET    /chaos                     scenarios + current run status
+POST   /chaos/start               { scenario?: "...", speed?: 10 }
+POST   /chaos/stop
+POST   /overrides/reset           clear every injected fault
+
 Run
 ---
 export FLASK_APP=dt.api:app
@@ -26,16 +41,18 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import threading
 import time
 from collections import deque
 from pathlib import Path
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any, Deque, Dict, List, Optional, Tuple
 
 from queue import Empty
 
 from flask import Flask, Response, jsonify, request
 
-from .state import DTState, safe_float, safe_int
+from .chaos_runner import ChaosRunner
+from .state import DTState, link_key, safe_float, safe_int, valid_name
 from .cost_model import CostModel
 from .exporters import as_dtdl, as_k8s_crds
 from .policy.resilient import FederatedPlanner
@@ -124,6 +141,11 @@ RESOURCE_GUARDIAN = ResourceGuardian(
 
 NOISE_INJECTOR = maybe_start_noise(STATE)
 
+CHAOS = ChaosRunner(STATE)
+
+# Serialises edits to jobs/*.yaml so two saves can't interleave a rewrite.
+_JOBS_LOCK = threading.Lock()
+
 RECENT_PLANS: Deque[Dict[str, Any]] = deque(maxlen=200)
 
 # How long an idle SSE connection waits before emitting a keepalive comment.
@@ -173,6 +195,100 @@ def _load_job_catalog() -> List[Dict[str, Any]]:
                 }
             )
     return entries
+
+
+def _node_problem(desc: Dict[str, Any]) -> Optional[str]:
+    """Minimal sanity checks for a node descriptor coming from the UI.
+
+    Full schema validation isn't enforced here: a quarter of the generated
+    nodes/ files don't pass schemas/node.schema.yaml, and rejecting on it would
+    make those nodes impossible to edit.
+    """
+    name = desc.get("name")
+    if not valid_name(name):
+        return "name may only contain letters, digits, '.', '_' and '-' (max 64 chars)"
+    for key in ("class", "arch"):
+        if not isinstance(desc.get(key), str) or not desc[key].strip():
+            return f"'{key}' is required"
+    cpu = desc.get("cpu")
+    if not isinstance(cpu, dict) or safe_float(cpu.get("cores"), 0.0) <= 0:
+        return "cpu.cores must be a positive number"
+    mem = desc.get("memory")
+    if not isinstance(mem, dict) or safe_float(mem.get("ram_gb"), 0.0) <= 0:
+        return "memory.ram_gb must be a positive number"
+    gpu = desc.get("gpu")
+    if gpu is not None and not isinstance(gpu, dict):
+        return "gpu must be an object"
+    formats = desc.get("formats_supported")
+    if formats is not None and not (
+        isinstance(formats, list) and all(isinstance(f, str) for f in formats)
+    ):
+        return "formats_supported must be a list of strings"
+    return None
+
+
+def _job_problem(job: Dict[str, Any]) -> Optional[str]:
+    if not valid_name(job.get("id")):
+        return "job id may only contain letters, digits, '.', '_' and '-' (max 64 chars)"
+    stages = job.get("stages")
+    if not isinstance(stages, list) or not stages:
+        return "a job needs at least one stage"
+    seen = set()
+    for i, stage in enumerate(stages):
+        if not isinstance(stage, dict):
+            return f"stage #{i + 1} must be an object"
+        sid = stage.get("id")
+        if not isinstance(sid, str) or not sid.strip():
+            return f"stage #{i + 1} needs an id"
+        if sid in seen:
+            return f"duplicate stage id '{sid}'"
+        seen.add(sid)
+        res = stage.get("resources") or {}
+        if not isinstance(res, dict):
+            return f"stage '{sid}': resources must be an object"
+        for key, val in res.items():
+            if safe_float(val, -1.0) < 0:
+                return f"stage '{sid}': resources.{key} must be a non-negative number"
+    if job.get("deadline_ms") is not None and safe_float(job.get("deadline_ms"), -1.0) < 0:
+        return "deadline_ms must be a non-negative number"
+    return None
+
+
+def _read_job_file(path: Path) -> Tuple[Any, List[Dict[str, Any]], str]:
+    """(raw yaml, jobs in it, leading comment header) for a jobs/ file."""
+    text = path.read_text(encoding="utf-8")
+    header_lines = []
+    for line in text.splitlines():
+        if line.startswith("#") or (header_lines and not line.strip()):
+            header_lines.append(line)
+            continue
+        break
+    header = "\n".join(header_lines).rstrip()
+    raw = yaml.safe_load(text)
+    return raw, _ensure_jobs(raw), header
+
+
+def _write_job_file(path: Path, raw: Any, jobs: List[Dict[str, Any]], header: str) -> None:
+    if not jobs:
+        path.unlink(missing_ok=True)
+        return
+    if isinstance(raw, dict) and isinstance(raw.get("jobs"), list):
+        out: Any = {**raw, "jobs": jobs}
+    elif isinstance(raw, list):
+        out = jobs
+    elif len(jobs) == 1:
+        out = jobs[0]
+    else:
+        out = {"jobs": jobs}
+    body = yaml.safe_dump(out, sort_keys=False, allow_unicode=True)
+    path.write_text((header + "\n\n" if header else "") + body, encoding="utf-8")
+
+
+def _locate_job(job_id: str) -> Optional[Tuple[Path, int]]:
+    for entry in _load_job_catalog():
+        if entry["id"] == job_id:
+            return Path(entry["path"]), entry["index"]
+    return None
 
 
 def _slim_plan_for_history(plan: Dict[str, Any]) -> Dict[str, Any]:
@@ -484,6 +600,9 @@ def add_node():
     descriptor = body.get("node")
     if not isinstance(descriptor, dict):
         return _err("missing 'node'")
+    problem = _node_problem(descriptor)
+    if problem:
+        return _err(problem)
     persist = bool(body.get("persist", True))
     preserve_runtime = bool(body.get("preserve_runtime", True))
     try:
@@ -494,6 +613,190 @@ def add_node():
     except Exception:
         app.logger.exception("/add_node failed")
         return _err("add_node failed", status=500)
+
+
+@app.get("/nodes/<name>")
+def get_node_descriptor(name: str):
+    desc = STATE.node_descriptor(name)
+    if desc is None:
+        return _err(f"node '{name}' not found", status=404)
+    return _ok(desc)
+
+
+@app.delete("/nodes/<name>")
+def delete_node(name: str):
+    dropped = STATE.remove_node(name)
+    if dropped is None:
+        return _err(f"node '{name}' not found", status=404)
+    for rid in dropped:
+        SELF_HEALER.forget_reservation(rid)
+    return _ok({"node": name, "dropped_reservations": dropped})
+
+
+@app.get("/topology")
+def topology():
+    raw: Dict[str, Any] = {}
+    try:
+        if STATE.topology_path.exists():
+            raw = yaml.safe_load(STATE.topology_path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        app.logger.exception("failed to read topology file")
+    sites = sorted(
+        {
+            site.get("name")
+            for region in (raw.get("regions") or [])
+            for site in (region.get("sites") or [])
+            if site.get("name")
+        }
+    )
+    qos = [q.get("name") for q in ((raw.get("defaults") or {}).get("routing") or {}).get("qos_classes") or []]
+    return _ok(
+        {
+            "links": STATE.topology_link_specs(),
+            "link_profiles": raw.get("link_profiles") or [],
+            "sites": sites,
+            "subnets": [s.get("name") for s in (raw.get("subnets") or []) if s.get("name")],
+            "qos_classes": [q for q in qos if q],
+            "default_network": (raw.get("defaults") or {}).get("network") or {},
+        }
+    )
+
+
+@app.post("/links")
+def upsert_link():
+    if not request.is_json:
+        return _err("expected JSON body")
+    spec = (request.get_json() or {}).get("link")
+    if not isinstance(spec, dict):
+        return _err("missing 'link'")
+    original_key = (request.get_json() or {}).get("original_key")
+    try:
+        saved = STATE.upsert_link(spec)
+    except ValueError as exc:
+        return _err(str(exc))
+    except Exception:
+        app.logger.exception("/links failed")
+        return _err("saving link failed", status=500)
+    # Endpoints changed while editing: drop the old declaration.
+    if original_key and original_key != saved["key"]:
+        STATE.remove_link(original_key)
+    return _ok(saved)
+
+
+@app.delete("/links")
+def delete_link():
+    key = request.args.get("key") or ""
+    if "|" not in key:
+        a, b = request.args.get("a"), request.args.get("b")
+        if not a or not b:
+            return _err("pass ?key=A|B (or ?a=&b=)")
+        key = link_key(a, b)
+    if not STATE.remove_link(key):
+        return _err(f"link '{key}' not found", status=404)
+    return _ok({"key": key})
+
+
+@app.post("/jobs")
+def save_job():
+    if not request.is_json:
+        return _err("expected JSON body")
+    body = request.get_json() or {}
+    job = body.get("job")
+    if not isinstance(job, dict):
+        return _err("missing 'job'")
+    problem = _job_problem(job)
+    if problem:
+        return _err(problem)
+    job_id = job["id"]
+    original_id = body.get("original_id") or job_id
+
+    with _JOBS_LOCK:
+        if original_id != job_id and _locate_job(job_id):
+            return _err(f"a job with id '{job_id}' already exists", status=409)
+        found = _locate_job(original_id)
+        try:
+            if found:
+                path, index = found
+                raw, jobs, header = _read_job_file(path)
+                jobs[index] = job
+            else:
+                root = _jobs_root()
+                root.mkdir(parents=True, exist_ok=True)
+                path = root / f"{job_id}.yaml"
+                if path.exists():
+                    return _err(f"jobs/{path.name} already exists", status=409)
+                raw, jobs, header = job, [job], ""
+            _write_job_file(path, raw, jobs, header)
+        except Exception:
+            app.logger.exception("/jobs save failed")
+            return _err("saving job failed", status=500)
+
+    STATE.emit_event("fabric.job.saved", {"job_id": job_id, "file": path.name}, subject=job_id)
+    return _ok({"id": job_id, "file": path.name, "created": not found})
+
+
+@app.delete("/jobs")
+def delete_job():
+    job_id = request.args.get("id") or ""
+    with _JOBS_LOCK:
+        found = _locate_job(job_id)
+        if not found:
+            return _err(f"job '{job_id}' not found", status=404)
+        path, index = found
+        try:
+            raw, jobs, header = _read_job_file(path)
+            jobs.pop(index)
+            _write_job_file(path, raw, jobs, header)
+        except Exception:
+            app.logger.exception("/jobs delete failed")
+            return _err("deleting job failed", status=500)
+    STATE.emit_event("fabric.job.deleted", {"job_id": job_id, "file": path.name}, subject=job_id)
+    return _ok({"id": job_id, "file": path.name})
+
+
+@app.delete("/plans")
+def clear_plans():
+    cleared = len(RECENT_PLANS)
+    RECENT_PLANS.clear()
+    STATE.emit_event("fabric.plan.cleared", {"cleared": cleared})
+    return _ok({"cleared": cleared})
+
+
+@app.get("/chaos")
+def chaos_status():
+    try:
+        catalog = CHAOS.scenarios()
+    except Exception:
+        app.logger.exception("failed to read chaos scenarios")
+        catalog = {"base_events": 0, "scenarios": []}
+    return _ok({**catalog, "status": CHAOS.status()})
+
+
+@app.post("/chaos/start")
+def chaos_start():
+    body = request.get_json(silent=True) or {}
+    scenario = body.get("scenario") or None
+    speed = safe_float(body.get("speed"), 10.0)
+    try:
+        return _ok(CHAOS.start(scenario, speed))
+    except (ValueError, RuntimeError) as exc:
+        return _err(str(exc), status=409 if isinstance(exc, RuntimeError) else 400)
+    except Exception:
+        app.logger.exception("/chaos/start failed")
+        return _err("starting chaos failed", status=500)
+
+
+@app.post("/chaos/stop")
+def chaos_stop():
+    return _ok({"stopped": CHAOS.stop()})
+
+
+@app.post("/overrides/reset")
+def overrides_reset():
+    # A running schedule would immediately re-inject what we clear.
+    stopped = CHAOS.stop()
+    result = STATE.reset_overrides()
+    return _ok({**result, "chaos_stopped": stopped})
 
 
 # -----------------------------------

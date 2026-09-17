@@ -15,6 +15,16 @@ function keysFor(type: string): (readonly string[])[] {
   const keys: (readonly string[])[] = [queryKeys.events]
   if (type.startsWith('fabric.plan')) {
     keys.push(queryKeys.plans, queryKeys.snapshot)
+  } else if (type.startsWith('fabric.job')) {
+    keys.push(queryKeys.jobs)
+  } else if (type.startsWith('fabric.chaos') || type.startsWith('fabric.overrides')) {
+    keys.push(queryKeys.chaos, queryKeys.snapshot)
+  } else if (
+    type === 'fabric.link.added' ||
+    type === 'fabric.link.updated' ||
+    type === 'fabric.link.removed'
+  ) {
+    keys.push(queryKeys.topology, queryKeys.snapshot)
   } else if (
     type.startsWith('fabric.node') ||
     type.startsWith('fabric.link') ||

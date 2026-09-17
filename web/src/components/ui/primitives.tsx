@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { cn } from '../../lib/format'
 
 export function Card({
@@ -161,5 +161,165 @@ export function EmptyRow({ colSpan, children }: { colSpan: number; children: Rea
         {children}
       </td>
     </tr>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Form building blocks (management views)
+// ---------------------------------------------------------------------------
+
+export const inputCls =
+  'w-full rounded-lg border border-edge-2 bg-[#0e1420] px-2.5 py-1.5 text-sm text-ink outline-none focus:border-[#3a5575] disabled:opacity-60'
+
+export function Field({
+  label,
+  hint,
+  children,
+  className,
+}: {
+  label: ReactNode
+  hint?: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <label className={cn('flex min-w-0 flex-col gap-1 text-[11px] text-muted-2', className)}>
+      <span className="font-semibold tracking-wide">{label}</span>
+      {children}
+      {hint && <span className="text-[10px] text-muted-2/80">{hint}</span>}
+    </label>
+  )
+}
+
+export function Notice({
+  tone,
+  children,
+  onDismiss,
+}: {
+  tone: 'ok' | 'err' | 'info'
+  children: ReactNode
+  onDismiss?: () => void
+}) {
+  const tones = {
+    ok: 'border-[#1e5d42] bg-[#103a28] text-[#8ff0c1]',
+    err: 'border-[#5e1b1b] bg-[#2a1414] text-[#ffb4b4]',
+    info: 'border-[#2c5b86] bg-[#13314d] text-[#cfe7ff]',
+  }
+  return (
+    <div
+      role={tone === 'err' ? 'alert' : 'status'}
+      className={cn('flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-xs', tones[tone])}
+    >
+      <div className="min-w-0 break-words">{children}</div>
+      {onDismiss && (
+        <button
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          className="cursor-pointer text-sm leading-none opacity-70 hover:opacity-100"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  )
+}
+
+export function Modal({
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+  wide,
+}: {
+  title: ReactNode
+  subtitle?: ReactNode
+  onClose: () => void
+  children: ReactNode
+  footer?: ReactNode
+  wide?: boolean
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-8 backdrop-blur-[2px]"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className={cn(
+          'flex w-full flex-col rounded-xl border border-edge-2 bg-panel shadow-[0_20px_60px_rgba(0,0,0,0.5)]',
+          wide ? 'max-w-4xl' : 'max-w-2xl',
+        )}
+      >
+        <header className="flex items-start justify-between gap-3 border-b border-edge px-5 py-3">
+          <div>
+            <h2 className="text-[15px] font-semibold tracking-wide text-[#cfe7ff]">{title}</h2>
+            {subtitle && <p className="mt-0.5 text-xs text-muted-2">{subtitle}</p>}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="cursor-pointer rounded-md px-2 text-lg leading-none text-muted hover:text-ink"
+          >
+            ×
+          </button>
+        </header>
+        <div className="px-5 py-4">{children}</div>
+        {footer && (
+          <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-edge px-5 py-3">
+            {footer}
+          </footer>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Number input that keeps an empty field as `undefined` instead of 0. */
+export function NumberInput({
+  value,
+  onChange,
+  step = 'any',
+  min,
+  max,
+  placeholder,
+  className,
+}: {
+  value: number | undefined | null
+  onChange: (value: number | undefined) => void
+  step?: number | 'any'
+  min?: number
+  max?: number
+  placeholder?: string
+  className?: string
+}) {
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      step={step}
+      min={min}
+      max={max}
+      placeholder={placeholder}
+      value={value ?? ''}
+      onChange={(e) => {
+        const raw = e.target.value
+        if (raw === '') return onChange(undefined)
+        const n = Number(raw)
+        onChange(Number.isFinite(n) ? n : undefined)
+      }}
+      className={cn(inputCls, className)}
+    />
   )
 }
