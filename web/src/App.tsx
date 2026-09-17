@@ -1,10 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePlans, useSnapshot } from './api/hooks'
 import { useEventStream } from './api/useEventStream'
 import { EventsFeed } from './components/EventsFeed'
 import { FederationLinksTable, FederationsTable } from './components/FederationsPanel'
 import { JobComposer } from './components/JobComposer'
 import { LinksTable } from './components/LinksTable'
+import { ChaosPanel, MaintenancePanel } from './components/manage/ChaosPanel'
+import { JobManager } from './components/manage/JobManager'
+import { LinkManager } from './components/manage/LinkManager'
+import { NodeManager } from './components/manage/NodeManager'
+import { ReservationsPanel } from './components/manage/ReservationsPanel'
 import { NodesTable } from './components/NodesTable'
 import { ObservationPanel } from './components/ObservationPanel'
 import { Overview } from './components/Overview'
@@ -14,6 +19,32 @@ import { TopologyGraph } from './components/TopologyGraph'
 import { Button } from './components/ui/primitives'
 import { cn } from './lib/format'
 
+const TABS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'nodes', label: 'Nodes' },
+  { id: 'links', label: 'Links' },
+  { id: 'jobs', label: 'Jobs' },
+  { id: 'chaos', label: 'Chaos & Faults' },
+  { id: 'reservations', label: 'Reservations' },
+] as const
+type TabId = (typeof TABS)[number]['id']
+
+function tabFromHash(): TabId {
+  const id = window.location.hash.replace(/^#\/?/, '')
+  return TABS.some((t) => t.id === id) ? (id as TabId) : 'dashboard'
+}
+
+/** Current tab, mirrored in location.hash so reloads and back/forward keep it. */
+function useHashTab(): [TabId, (tab: TabId) => void] {
+  const [tab, setTab] = useState<TabId>(tabFromHash)
+  useEffect(() => {
+    const onHash = () => setTab(tabFromHash())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+  return [tab, (next) => (window.location.hash = next === 'dashboard' ? '' : next)]
+}
+
 /** Fallback poll used only while the SSE stream is down. */
 const FALLBACK_MS = 2000
 /** Safety-net poll while streaming, to heal any missed event. */
@@ -22,6 +53,7 @@ const SAFETY_NET_MS = 30000
 export default function App() {
   const [live, setLive] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState(0)
+  const [tab, setTab] = useHashTab()
 
   const stream = useEventStream({ enabled: live })
   const streaming = stream.status === 'live'
@@ -83,6 +115,23 @@ export default function App() {
             </Button>
           </div>
         </div>
+        <nav className="-mb-3 mt-3 flex gap-1 overflow-x-auto" aria-label="Sections">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              aria-current={tab === t.id ? 'page' : undefined}
+              className={cn(
+                'cursor-pointer whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors',
+                tab === t.id
+                  ? 'border-accent text-[#cfe7ff]'
+                  : 'border-transparent text-muted hover:text-ink',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
       </header>
 
       <main className="mx-auto flex max-w-[1600px] flex-col gap-4 p-5">
@@ -99,35 +148,57 @@ export default function App() {
           </div>
         )}
 
-        <Overview snapshot={snapshot.data} lastPlan={activePlan} />
+        {tab === 'dashboard' && (
+          <>
+            <Overview snapshot={snapshot.data} lastPlan={activePlan} />
 
-        <TopologyGraph snapshot={snapshot.data} lastPlan={activePlan} />
+            <TopologyGraph snapshot={snapshot.data} lastPlan={activePlan} />
 
-        <JobComposer />
+            <JobComposer />
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <RecentPlans
-            plans={plans.data}
-            selectedIndex={selectedPlan}
-            onSelect={setSelectedPlan}
-          />
-          <PlanStages plan={activePlan} />
-        </div>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <RecentPlans
+                plans={plans.data}
+                selectedIndex={selectedPlan}
+                onSelect={setSelectedPlan}
+              />
+              <PlanStages plan={activePlan} />
+            </div>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <NodesTable snapshot={snapshot.data} />
-          <LinksTable snapshot={snapshot.data} />
-        </div>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <NodesTable snapshot={snapshot.data} />
+              <LinksTable snapshot={snapshot.data} />
+            </div>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <FederationsTable snapshot={snapshot.data} />
-          <FederationLinksTable snapshot={snapshot.data} />
-        </div>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <FederationsTable snapshot={snapshot.data} />
+              <FederationLinksTable snapshot={snapshot.data} />
+            </div>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <ObservationPanel snapshot={snapshot.data} />
-          <EventsFeed intervalMs={intervalMs} />
-        </div>
+            <EventsFeed intervalMs={intervalMs} />
+          </>
+        )}
+
+        {tab === 'nodes' && <NodeManager snapshot={snapshot.data} />}
+
+        {tab === 'links' && <LinkManager snapshot={snapshot.data} />}
+
+        {tab === 'jobs' && <JobManager />}
+
+        {tab === 'chaos' && (
+          <>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <ChaosPanel />
+              <div className="flex flex-col gap-4">
+                <MaintenancePanel snapshot={snapshot.data} />
+                <ObservationPanel snapshot={snapshot.data} />
+              </div>
+            </div>
+            <EventsFeed intervalMs={intervalMs} />
+          </>
+        )}
+
+        {tab === 'reservations' && <ReservationsPanel snapshot={snapshot.data} />}
       </main>
     </div>
   )

@@ -151,6 +151,26 @@ class PredictiveAnalyzer:
         self._link_loss.setdefault(key, _EWMA(self._util_alpha))
         self._link_trend.setdefault(key, _Trend(self._window))
 
+    def forget_node(self, name: str) -> None:
+        """Drop all history for a node that was removed from the fabric."""
+        for series in (
+            self._node_util,
+            self._node_trend,
+            self._node_derate,
+            self._node_reliability,
+            self._node_availability,
+            self._node_last_ts,
+            self._node_battery_pct,
+            self._node_battery_drain,
+            self._node_mtbf,
+            self._node_uptime,
+        ):
+            series.pop(name, None)
+
+    def forget_link(self, key: str) -> None:
+        for series in (self._link_latency, self._link_jitter, self._link_loss, self._link_trend):
+            series.pop(key, None)
+
     # ---- updates ------------------------------------------------------
 
     def record_node_util(

@@ -295,3 +295,89 @@ export const STRATEGIES: { value: Strategy; label: string }[] = [
   { value: 'balanced', label: 'Balanced' },
   { value: 'rl-markov', label: 'RL Markov planner' },
 ]
+
+// ---------------------------------------------------------------------------
+// Management endpoints
+// ---------------------------------------------------------------------------
+
+export const NODE_CLASSES = ['phone', 'sbc', 'laptop', 'workstation', 'gaming_rig', 'server', 'hpc'] as const
+export const NODE_ROLES = ['worker', 'manager', 'gateway', 'storage', 'accelerator'] as const
+export const NODE_ARCHES = ['amd64', 'arm64', 'riscv64'] as const
+export const NETWORK_FABRICS = ['ethernet', 'infiniband', 'wifi', 'lte', 'satellite'] as const
+export const WORKLOAD_FORMATS = ['native', 'wasm', 'cuda', 'npu', 'fpga', 'asic'] as const
+
+/** A node as stored in nodes/<name>.yaml (GET /nodes/<name>). Open-ended on purpose. */
+export interface NodeDescriptor {
+  name: string
+  class?: string
+  arch?: string
+  role?: string
+  cpu?: { cores?: number; base_ghz?: number; uarch?: string; [key: string]: unknown }
+  memory?: { ram_gb?: number; [key: string]: unknown }
+  gpu?: { model?: string; vram_gb?: number; vendor?: string; [key: string]: unknown }
+  network?: { fabric?: string; speed_gbps?: number; base_latency_ms?: number; [key: string]: unknown }
+  health?: { reliability?: number; [key: string]: unknown }
+  labels?: Record<string, string>
+  formats_supported?: string[]
+  [key: string]: unknown
+}
+
+/** One entry of the topology.yaml `links:` list. */
+export interface LinkSpec {
+  key?: string
+  a: string
+  b: string
+  profile?: string
+  qos_class?: string
+  scope?: string
+  subnet?: string
+  speed_gbps?: number
+  rtt_ms?: number
+  jitter_ms?: number
+  loss_pct?: number
+  ecn?: boolean
+}
+
+export interface LinkProfile {
+  name: string
+  fabric?: string
+  speed_gbps?: number
+  rtt_ms?: number
+  jitter_ms?: number
+  loss_pct?: number
+  ecn?: boolean
+  mtu_bytes?: number
+}
+
+export interface TopologyInfo {
+  links: (LinkSpec & { key: string })[]
+  link_profiles: LinkProfile[]
+  sites: string[]
+  subnets: string[]
+  qos_classes: string[]
+  default_network: Record<string, unknown>
+}
+
+export interface ChaosScenario {
+  name: string
+  description?: string
+  events: number
+}
+
+export interface ChaosStatus {
+  running: boolean
+  scenario: string | null
+  speed: number | null
+  started_ts: number | null
+  finished_ts: number | null
+  applied: number
+  total: number
+  stopped: boolean
+  log: { ts: number; msg: string }[]
+}
+
+export interface ChaosInfo {
+  base_events: number
+  scenarios: ChaosScenario[]
+  status: ChaosStatus
+}

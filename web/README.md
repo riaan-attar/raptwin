@@ -48,6 +48,23 @@ serve WebSocket properly), and `EventSource` handles reconnection natively.
 `dt/api.py` runs with `threaded=True` because an open stream holds a worker for
 its lifetime.
 
+## Managing the fabric
+
+Everything can be changed from the tabs in the header; each view also works as a
+deep link (`/#nodes`, `/#links`, `/#jobs`, `/#chaos`, `/#reservations`).
+
+| Tab | What you can do | Persists to |
+| --- | --- | --- |
+| Nodes | add, edit (form or full JSON descriptor), duplicate, rename, delete, take down / bring up | `nodes/<name>.yaml` |
+| Links | add, edit, delete declared links; take links down; drop runtime-only links | `links:` block of `sim/topology.yaml` |
+| Jobs | create, edit stages, test-fit (dry run), delete | `jobs/*.yaml` |
+| Chaos & Faults | run / stop topology scenarios in-process, reset all faults, inject single observations, clear plan history | runtime only |
+| Reservations | release one, filtered, or all | runtime only |
+
+Saving a link rewrites only the `links:` block of `topology.yaml`; the other
+sections and their comments are left as they are, but comments *inside* that
+block are not preserved.
+
 ## Running
 
 The DT API must be running first:

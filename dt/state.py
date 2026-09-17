@@ -36,6 +36,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -49,6 +50,22 @@ from .predict import NodeForecast, PredictiveAnalyzer
 
 
 # ----------------------------- helpers -----------------------------
+
+# Node names double as file names (nodes/<name>.yaml), so they must not be able
+# to escape the directory or collide with hidden/relative paths.
+_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+
+# Fields an override / chaos event may set; everything else in dyn is derived.
+NODE_OVERRIDE_FIELDS = ("down", "power_cap_w", "thermal_derate", "clock_skew_ms", "packet_dup", "packet_reorder")
+LINK_OVERRIDE_FIELDS = ("down", "speed_gbps", "rtt_ms", "jitter_ms", "loss_pct", "ecn")
+
+# Keys a topology link entry may carry (see schemas/topology.schema.yaml).
+LINK_SPEC_FIELDS = ("a", "b", "profile", "qos_class", "scope", "subnet", "speed_gbps", "rtt_ms", "jitter_ms", "loss_pct", "ecn")
+
+
+def valid_name(name: Any) -> bool:
+    return isinstance(name, str) and bool(_NAME_RE.match(name))
+
 
 def link_key(a: str, b: str) -> str:
     return "|".join(sorted([a, b]))
@@ -139,6 +156,9 @@ class DTState:
         # Static-ish structures
         self.nodes_by_name: Dict[str, Dict[str, Any]] = {}  # includes 'dyn'
         self.links_by_key: Dict[str, Dict[str, Any]] = {}   # includes 'dyn'
+        # Link entries exactly as declared in topology.yaml (key -> spec), in
+        # file order, so edits made through the API can be written back.
+        self._topology_link_specs: Dict[str, Dict[str, Any]] = {}
         self.defaults: Dict[str, Any] = {}
         self._nodes_fingerprint: Dict[str, float] = {}
 
@@ -298,11 +318,13 @@ class DTState:
                 self.defaults = topo.get("defaults", {}) or {}
 
                 links: Dict[str, Dict[str, Any]] = {}
+                specs: Dict[str, Dict[str, Any]] = {}
                 for ln in (topo.get("links") or []):
                     a, b = ln.get("a"), ln.get("b")
                     if not a or not b:
                         continue
                     k = link_key(a, b)
+                    specs[k] = {f: ln[f] for f in LINK_SPEC_FIELDS if ln.get(f) is not None}
                     lnd = {
                         "a": a, "b": b,
                         "profile": ln.get("profile"),
@@ -324,6 +346,7 @@ class DTState:
                     links[k] = lnd
                     self._predictor.ensure_link(k)
                 self.links_by_key = links
+                self._topology_link_specs = specs
                 for key in list(self.links_by_key.keys()):
                     self._update_link_predictive_locked(key)
                 self._invalidate_snapshot_locked()
@@ -646,6 +669,10 @@ class DTState:
         name = (descriptor or {}).get("name")
         if not name:
             raise ValueError("descriptor.name is required")
+        if not valid_name(name):
+            raise ValueError(
+                "node name may only contain letters, digits, '.', '_' and '-' (max 64 chars)"
+            )
 
         disk_descriptor = copy.deepcopy(descriptor)
         disk_descriptor.pop("dyn", None)
@@ -731,6 +758,215 @@ class DTState:
                 print(f"[state] WARN: failed to persist node {name}: {exc}")
 
         return self.get_node(name) or {}
+
+    def node_descriptor(self, name: str) -> Optional[Dict[str, Any]]:
+        """The node as declared (what nodes/<name>.yaml holds), without runtime state."""
+        with self._lock:
+            node = self.nodes_by_name.get(name)
+            if not node:
+                return None
+            desc = copy.deepcopy(node)
+            desc.pop("dyn", None)
+            desc.pop("caps", None)
+            return desc
+
+    def remove_node(self, name: str, *, delete_file: bool = True) -> Optional[List[str]]:
+        """Remove a node from the live fabric (and nodes/<name>.yaml).
+
+        Returns the ids of reservations that were dropped with it, or None if
+        the node did not exist.
+        """
+        if not valid_name(name):
+            return None
+        with self._lock:
+            node = self.nodes_by_name.pop(name, None)
+            if node is None:
+                return None
+            dropped = sorted(((node.get("dyn") or {}).get("reservations") or {}).keys())
+            self._predictor.forget_node(name)
+            self._nodes_fingerprint.pop(f"{name}.yaml", None)
+            self._overrides.get("nodes", {}).pop(name, None)
+            self._overrides_applied.get("nodes", {}).pop(name, None)
+            self._invalidate_snapshot_locked()
+
+            if delete_file:
+                target = self.nodes_dir / f"{name}.yaml"
+                try:
+                    target.unlink()
+                except FileNotFoundError:
+                    pass
+                except Exception as exc:
+                    print(f"[state] WARN: failed to delete {target}: {exc}")
+
+            self._emit_event(
+                "fabric.node.removed",
+                {"node": name, "dropped_reservations": dropped},
+                subject=name,
+            )
+        return dropped
+
+    def topology_link_specs(self) -> List[Dict[str, Any]]:
+        """Links declared in topology.yaml, with their live key."""
+        with self._lock:
+            return [
+                {"key": k, **copy.deepcopy(spec)} for k, spec in self._topology_link_specs.items()
+            ]
+
+    def upsert_link(self, spec: Dict[str, Any], *, persist: bool = True) -> Dict[str, Any]:
+        """Create or update a topology link and (optionally) write it to topology.yaml."""
+        a, b = spec.get("a"), spec.get("b")
+        if not isinstance(a, str) or not isinstance(b, str) or not a.strip() or not b.strip():
+            raise ValueError("link needs both 'a' and 'b' endpoints")
+        a, b = a.strip(), b.strip()
+        if a == b:
+            raise ValueError("a link cannot connect an endpoint to itself")
+
+        clean: Dict[str, Any] = {"a": a, "b": b}
+        for f in LINK_SPEC_FIELDS[2:]:
+            v = spec.get(f)
+            if v is None or v == "":
+                continue
+            if f in ("speed_gbps", "rtt_ms", "jitter_ms", "loss_pct"):
+                num = safe_float(v, -1.0)
+                if num < 0:
+                    raise ValueError(f"{f} must be a non-negative number")
+                if f == "loss_pct" and num > 100:
+                    raise ValueError("loss_pct must be between 0 and 100")
+                clean[f] = num
+            elif f == "ecn":
+                clean[f] = bool(v)
+            else:
+                clean[f] = str(v)
+
+        k = link_key(a, b)
+        with self._lock:
+            existing = self.links_by_key.get(k)
+            link = {
+                "a": a,
+                "b": b,
+                "profile": clean.get("profile"),
+                "qos_class": clean.get("qos_class"),
+                "scope": clean.get("scope", "site"),
+                "subnet": clean.get("subnet"),
+                "base": {
+                    f: clean[f]
+                    for f in ("speed_gbps", "rtt_ms", "jitter_ms", "loss_pct", "ecn")
+                    if f in clean
+                },
+                # Editing a link's declared metrics must not wipe live chaos state.
+                "dyn": (existing or {}).get("dyn") or LinkDyn().__dict__.copy(),
+            }
+            self.links_by_key[k] = link
+            self._topology_link_specs[k] = clean
+            self._predictor.ensure_link(k)
+            self._update_link_predictive_locked(k)
+            self._invalidate_snapshot_locked()
+            if persist:
+                self._persist_topology_links_locked()
+            self._emit_event(
+                "fabric.link.updated" if existing else "fabric.link.added",
+                {"link": k, "spec": clean},
+                subject=k,
+            )
+            return {"key": k, **clean}
+
+    def remove_link(self, key: str, *, persist: bool = True) -> bool:
+        with self._lock:
+            link = self.links_by_key.pop(key, None)
+            declared = self._topology_link_specs.pop(key, None)
+            if link is None and declared is None:
+                return False
+            self._predictor.forget_link(key)
+            self._overrides.get("links", {}).pop(key, None)
+            self._overrides_applied.get("links", {}).pop(key, None)
+            self._invalidate_snapshot_locked()
+            if persist and declared is not None:
+                self._persist_topology_links_locked()
+            self._emit_event("fabric.link.removed", {"link": key}, subject=key)
+            return True
+
+    def _persist_topology_links_locked(self) -> None:
+        """Rewrite only the ``links:`` block of topology.yaml.
+
+        The rest of the file (profiles, scenarios, comments) is left byte-for-byte
+        intact; a full yaml.safe_dump round-trip would strip every comment.
+        """
+        entries = []
+        for spec in self._topology_link_specs.values():
+            flow = yaml.safe_dump(spec, default_flow_style=True, sort_keys=False, width=10_000).strip()
+            entries.append(f"  - {flow}")
+        block = ["links:", *entries]
+
+        path = self.topology_path
+        lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+        start = next((i for i, ln in enumerate(lines) if re.match(r"^links\s*:", ln)), None)
+        if start is None:
+            if lines and lines[-1].strip():
+                lines.append("")
+            lines.extend(block)
+        else:
+            end = len(lines)
+            for i in range(start + 1, len(lines)):
+                if re.match(r"^[A-Za-z_]", lines[i]):
+                    end = i
+                    break
+            # Comments / blank lines directly above the next key belong to it.
+            while end > start + 1 and (not lines[end - 1].strip() or lines[end - 1].startswith("#")):
+                end -= 1
+            if end < len(lines):
+                block.append("")
+            lines[start:end] = block
+
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("\n".join(lines).rstrip("\n") + "\n", encoding="utf-8")
+            # We already hold the new state; don't let the watcher reload it.
+            self._topology_mtime = path.stat().st_mtime
+        except Exception as exc:
+            print(f"[state] WARN: failed to persist topology links: {exc}")
+
+    def reset_overrides(self) -> Dict[str, int]:
+        """Clear every injected fault (chaos, /observe, overrides.json) at once."""
+        node_defaults = NodeDyn().__dict__
+        link_defaults = LinkDyn().__dict__
+        with self._lock:
+            nodes_reset = 0
+            for name, node in self.nodes_by_name.items():
+                dyn = node.setdefault("dyn", NodeDyn().__dict__.copy())
+                if any(dyn.get(f) != node_defaults.get(f) for f in NODE_OVERRIDE_FIELDS):
+                    for f in NODE_OVERRIDE_FIELDS:
+                        dyn[f] = node_defaults.get(f)
+                    self._update_predictive_for_node_locked(name)
+                    nodes_reset += 1
+
+            links_reset = 0
+            for k in list(self.links_by_key.keys()):
+                link = self.links_by_key[k]
+                if link.get("synthetic"):
+                    self.links_by_key.pop(k, None)
+                    self._predictor.forget_link(k)
+                    links_reset += 1
+                    continue
+                dyn = link.setdefault("dyn", LinkDyn().__dict__.copy())
+                if any(dyn.get(f) != link_defaults.get(f) for f in LINK_OVERRIDE_FIELDS):
+                    for f in LINK_OVERRIDE_FIELDS:
+                        dyn[f] = link_defaults.get(f)
+                    self._update_link_predictive_locked(k)
+                    links_reset += 1
+
+            empty = {"nodes": {}, "links": {}}
+            self._overrides = copy.deepcopy(empty)
+            self._overrides_applied = copy.deepcopy(empty)
+            try:
+                self.overrides_path.parent.mkdir(parents=True, exist_ok=True)
+                self.overrides_path.write_text(json.dumps(empty, indent=2), encoding="utf-8")
+                self._overrides_mtime = self.overrides_path.stat().st_mtime
+            except Exception as exc:
+                print(f"[state] WARN: failed to clear overrides file: {exc}")
+            self._invalidate_snapshot_locked()
+            result = {"nodes_reset": nodes_reset, "links_reset": links_reset}
+            self._emit_event("fabric.overrides.reset", result)
+            return result
 
     def node_headroom(self, name: str) -> Optional[Dict[str, float]]:
         """Return instantaneous capacity/free headroom metrics for a node."""
