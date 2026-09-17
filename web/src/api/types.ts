@@ -152,6 +152,7 @@ export interface Snapshot {
   federation_links: FederationLink[]
   node_federations: Record<string, string>
   predictive: PredictiveOverview
+  economics?: { currency: string; grid_co2_g_per_kwh: number; price_per_kwh: number }
 }
 
 /** One entry of a plan's per_stage array (planner annotations + cost model metrics). */
@@ -176,6 +177,19 @@ export interface PlanStage {
   load_factor?: number
   network_penalty?: number
   expected_cost?: number
+  /** Money for this stage, in the fabric's currency (dt/economics.py). */
+  cost?: number | null
+  cost_breakdown?: CostBreakdown
+  co2_g?: number | null
+}
+
+export interface CostBreakdown {
+  compute: number
+  energy: number
+  egress: number
+  total: number
+  co2_g: number
+  kwh: number
 }
 
 export interface PlanFallback {
@@ -210,6 +224,12 @@ export interface PlanResult {
   mdp_value?: number
   self_healing_registered?: boolean
   predictive?: PredictiveOverview
+  /** Cost and carbon, added to every plan by dt/economics.py. */
+  currency?: string
+  cost_total?: number | null
+  cost_breakdown?: CostBreakdown | null
+  co2_g?: number | null
+  energy_kwh?: number | null
 }
 
 /** A stage of a job descriptor (jobs/*.yaml). */
@@ -284,6 +304,8 @@ export type Strategy =
   | 'fault-tolerant'
   | 'rl-markov'
   | 'mdp'
+  | 'cheapest-cost'
+  | 'greenest'
 
 export const STRATEGIES: { value: Strategy; label: string }[] = [
   { value: 'greedy', label: 'Greedy latency' },
@@ -294,6 +316,8 @@ export const STRATEGIES: { value: Strategy; label: string }[] = [
   { value: 'federated', label: 'Federated spread' },
   { value: 'balanced', label: 'Balanced' },
   { value: 'rl-markov', label: 'RL Markov planner' },
+  { value: 'cheapest-cost', label: 'Cheapest cost' },
+  { value: 'greenest', label: 'Lowest carbon' },
 ]
 
 // ---------------------------------------------------------------------------

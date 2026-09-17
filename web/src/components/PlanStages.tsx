@@ -1,5 +1,5 @@
 import type { PlanResult, PlanStage } from '../api/types'
-import { fmt, fmtPct } from '../lib/format'
+import { fmt, fmtCo2, fmtMoney, fmtPct } from '../lib/format'
 import { Badge, Card, Mono, Tag } from './ui/primitives'
 
 function StageCard({ stage }: { stage: PlanStage }) {
@@ -92,6 +92,23 @@ export function PlanStages({ plan }: { plan?: PlanResult }) {
         <span>
           Risk <strong className="text-ink">{fmt(plan.risk, 3)}</strong>
         </span>
+        {plan.cost_total != null && (
+          <span>
+            Cost{' '}
+            <strong className="text-ink">{fmtMoney(plan.cost_total, plan.currency)}</strong>
+            {plan.cost_breakdown?.egress ? (
+              <span className="text-muted-2">
+                {' '}
+                (egress {fmtMoney(plan.cost_breakdown.egress, plan.currency)})
+              </span>
+            ) : null}
+          </span>
+        )}
+        {plan.co2_g != null && (
+          <span>
+            CO₂ <strong className="text-ink">{fmtCo2(plan.co2_g)}</strong>
+          </span>
+        )}
         {plan.avg_reliability != null && (
           <span>
             Reliability <strong className="text-ink">{fmt(plan.avg_reliability)}</strong>

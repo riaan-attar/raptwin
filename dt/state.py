@@ -623,8 +623,15 @@ class DTState:
 
         federations, federation_links, node_federations = self._federation_overview_locked()
 
+        pricing = (self.defaults.get("pricing") or {})
+        energy_defaults = (self.defaults.get("energy") or {})
         snapshot = {
             "ts": utc_ms(),
+            "economics": {
+                "currency": str(pricing.get("currency") or "USD"),
+                "grid_co2_g_per_kwh": safe_float(energy_defaults.get("grid_co2_g_per_kwh"), 0.0),
+                "price_per_kwh": safe_float(energy_defaults.get("price_per_kwh"), 0.0),
+            },
             "nodes": nodes,
             "links": links,
             "federations": federations,
