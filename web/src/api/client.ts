@@ -1,5 +1,6 @@
 import type {
   ApiEnvelope,
+  BlastRadiusReport,
   ChaosInfo,
   ChaosStatus,
   EventsResponse,
@@ -144,6 +145,22 @@ export const api = {
     }),
 
   stopChaos: () => request<{ stopped: boolean }>('/chaos/stop', { method: 'POST' }),
+
+  blastRadius: (params: {
+    jobId: string
+    strategy: string
+    depth: number
+    deadlineMs?: number
+  }) =>
+    request<BlastRadiusReport>('/blast_radius', {
+      method: 'POST',
+      body: JSON.stringify({
+        job_id: params.jobId,
+        strategy: params.strategy,
+        depth: params.depth,
+        deadline_ms: params.deadlineMs,
+      }),
+    }),
 
   resetOverrides: () =>
     request<{ nodes_reset: number; links_reset: number; chaos_stopped: boolean }>(

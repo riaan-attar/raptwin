@@ -1476,6 +1476,16 @@ class DTState:
         """Public wrapper so API/controllers can publish without touching internals."""
         self._emit_event(event_type, data, subject=subject)
 
+    def predictive_checkpoint(self) -> Dict[str, Any]:
+        """Save predictive history so it can be rewound (see PredictiveAnalyzer)."""
+        with self._lock:
+            return self._predictor.checkpoint()
+
+    def predictive_restore(self, checkpoint: Dict[str, Any]) -> None:
+        with self._lock:
+            self._predictor.restore(checkpoint)
+            self._invalidate_snapshot_locked()
+
     def predictive_overview(self) -> Dict[str, Any]:
         with self._lock:
             return copy.deepcopy(self._predictor.overview())

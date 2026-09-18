@@ -47,48 +47,12 @@ import yaml  # noqa: E402
 
 from dt.cost_model import CostModel  # noqa: E402
 from dt.economics import annotate_plan  # noqa: E402
-from dt.policy.bandit import BanditPolicy  # noqa: E402
-from dt.policy.greedy import GreedyPlanner  # noqa: E402
-from dt.policy.mdp import MarkovPlanner  # noqa: E402
-from dt.policy.resilient import FederatedPlanner  # noqa: E402
-from dt.policy.rl_stub import RLPolicy  # noqa: E402
+from dt.planners import build_planner, plan_once  # noqa: E402
 from dt.state import DTState, safe_float  # noqa: E402
 from sim.chaos import ChaosEngine, OverridesStore, collect_chaos_events  # noqa: E402
 
 DEFAULT_STRATEGIES = ("greedy", "resilient")
 DEFAULT_CONFIG = ROOT / "ci" / "gate.yaml"
-
-
-# --------------------------------------------------------------------------
-# planners
-# --------------------------------------------------------------------------
-
-
-def build_planner(name: str, state: DTState, cm: CostModel):
-    """Same strategy names the API accepts, built against a throwaway state."""
-    norm = (name or "greedy").strip().lower()
-    base = {"risk_weight": 10.0, "energy_weight": 0.0, "prefer_locality_bonus_ms": 0.5,
-            "require_format_match": False}
-    if norm in {"resilient", "network-aware", "federated", "fault-tolerant", "balanced"}:
-        return FederatedPlanner(state, cm), norm
-    if norm in {"rl-markov", "mdp", "markov", "rl"}:
-        return MarkovPlanner(state, cm, rl_policy=RLPolicy(persist_path=None), gamma=0.92,
-                             failure_penalty=10.0, redundancy=3), None
-    if norm in {"bandit", "bandit-greedy"}:
-        return GreedyPlanner(state, cm, bandit=BanditPolicy(persist_path=None), cfg=base), None
-    if norm in {"cheapest-energy", "energy"}:
-        return GreedyPlanner(state, cm, cfg={**base, "energy_weight": 0.1}), None
-    if norm in {"cheapest-cost", "cost"}:
-        return GreedyPlanner(state, cm, cfg={**base, "cost_weight": 25.0}), None
-    if norm in {"greenest", "low-carbon", "carbon"}:
-        return GreedyPlanner(state, cm, cfg={**base, "carbon_weight": 25.0}), None
-    return GreedyPlanner(state, cm, cfg=base), None
-
-
-def plan_once(planner, mode: Optional[str], job: Dict[str, Any]) -> Dict[str, Any]:
-    if mode is not None:  # FederatedPlanner takes the mode as an argument
-        return planner.plan_job(job, dry_run=True, mode=mode)
-    return planner.plan_job(job, dry_run=True)
 
 
 # --------------------------------------------------------------------------

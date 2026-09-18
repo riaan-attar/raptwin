@@ -18,9 +18,10 @@ and integration tests can continue to provide deterministic data.
 """
 from __future__ import annotations
 
+import copy
 import time
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 def _clamp(x: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, x))
@@ -150,6 +151,30 @@ class PredictiveAnalyzer:
         self._link_jitter.setdefault(key, _EWMA(self._util_alpha))
         self._link_loss.setdefault(key, _EWMA(self._util_alpha))
         self._link_trend.setdefault(key, _Trend(self._window))
+
+    #: every stateful series, for checkpoint/restore
+    _SERIES_ATTRS = (
+        "_node_util", "_node_trend", "_node_derate", "_node_reliability",
+        "_node_availability", "_node_last_ts", "_node_battery_pct",
+        "_node_battery_drain", "_node_mtbf", "_node_uptime",
+        "_link_latency", "_link_jitter", "_link_loss", "_link_trend",
+    )
+
+    def checkpoint(self) -> Dict[str, Any]:
+        """Copy all learned history, so a caller can rewind it.
+
+        Forecasts are deliberately sticky: a node that ran hot keeps an elevated
+        projected_derate after the fault clears. That is right for a live twin
+        but wrong for a search that needs independent trials (see
+        sim/blast_radius.py), which would otherwise carry damage from one
+        candidate into the next.
+        """
+        return {attr: copy.deepcopy(getattr(self, attr)) for attr in self._SERIES_ATTRS}
+
+    def restore(self, checkpoint: Dict[str, Any]) -> None:
+        for attr, value in checkpoint.items():
+            if attr in self._SERIES_ATTRS:
+                setattr(self, attr, copy.deepcopy(value))
 
     def forget_node(self, name: str) -> None:
         """Drop all history for a node that was removed from the fabric."""
