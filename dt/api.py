@@ -27,6 +27,8 @@ GET    /chaos                     scenarios + current run status
 POST   /chaos/start               { scenario?: "...", speed?: 10 }
 POST   /chaos/stop
 POST   /overrides/reset           clear every injected fault
+POST   /blast_radius              { job|job_id, strategy?, depth?, branch? }
+                                  smallest fault sets that break a job
 
 Run
 ---
@@ -63,6 +65,8 @@ from .policy.rl_stub import RLPolicy
 from .policy.greedy import GreedyPlanner
 from .self_heal import ResourceGuardian, SelfHealingController
 from .noise import maybe_start_noise
+
+from sim.blast_radius import BlastRadiusSearch
 
 try:
     from .policy.bandit import BanditPolicy
@@ -849,6 +853,56 @@ def chaos_start():
 @app.post("/chaos/stop")
 def chaos_stop():
     return _ok({"stopped": CHAOS.stop()})
+
+
+@app.post("/blast_radius")
+def blast_radius():
+    """Search for the smallest fault sets that push a job past its deadline.
+
+    Runs against a throwaway DTState loaded from disk rather than the live one:
+    the search injects and reverts thousands of faults, and the dashboard should
+    not flicker (nor should a stray failure leave the live twin degraded).
+    """
+    if not request.is_json:
+        return _err("expected JSON body")
+    body = request.get_json() or {}
+    job = body.get("job")
+    if not job:
+        job_id = body.get("job_id")
+        entry = next((e for e in _load_job_catalog() if e["id"] == job_id), None)
+        if entry is None:
+            return _err(f"job '{job_id}' not found", status=404)
+        job = entry["job"]
+    if not isinstance(job, dict) or not job.get("stages"):
+        return _err("job needs at least one stage")
+
+    # Bounded so one request cannot tie up a worker: the search is quadratic in
+    # `branch` at depth 2 and cubic at depth 3.
+    depth = max(1, min(int(safe_float(body.get("depth"), 2)), 3))
+    branch = max(2, min(int(safe_float(body.get("branch"), 10)), 20))
+    max_sets = max(1, min(int(safe_float(body.get("max_sets"), 15)), 50))
+    deadline = body.get("deadline_ms")
+
+    scratch = DTState(
+        nodes_dir=str(STATE.nodes_dir),
+        topology_path=str(STATE.topology_path),
+        overrides_path=str(STATE.overrides_path),
+        auto_start_watchers=False,
+    )
+    try:
+        search = BlastRadiusSearch(
+            scratch,
+            job,
+            strategy=str(body.get("strategy") or "greedy"),
+            deadline_ms=None if deadline is None else safe_float(deadline, 0.0),
+        )
+        report = search.run(max_depth=depth, branch=branch, max_sets=max_sets)
+    except Exception:
+        app.logger.exception("/blast_radius failed")
+        return _err("blast radius search failed", status=500)
+    finally:
+        scratch.stop()
+    return _ok(report)
 
 
 @app.post("/overrides/reset")

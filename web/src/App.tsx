@@ -5,6 +5,7 @@ import { EventsFeed } from './components/EventsFeed'
 import { FederationLinksTable, FederationsTable } from './components/FederationsPanel'
 import { JobComposer } from './components/JobComposer'
 import { LinksTable } from './components/LinksTable'
+import { BlastRadiusPanel } from './components/manage/BlastRadiusPanel'
 import { ChaosPanel, MaintenancePanel } from './components/manage/ChaosPanel'
 import { JobManager } from './components/manage/JobManager'
 import { LinkManager } from './components/manage/LinkManager'
@@ -194,6 +195,7 @@ export default function App() {
                 <ObservationPanel snapshot={snapshot.data} />
               </div>
             </div>
+            <BlastRadiusPanel />
             <EventsFeed intervalMs={intervalMs} />
           </>
         )}

@@ -259,3 +259,11 @@ export function useResetOverrides() {
     },
   })
 }
+
+/** Blast-radius search. A mutation, not a query: expensive and user-triggered. */
+export function useBlastRadius() {
+  return useMutation({
+    mutationFn: (params: { jobId: string; strategy: string; depth: number; deadlineMs?: number }) =>
+      api.blastRadius(params),
+  })
+}

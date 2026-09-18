@@ -405,3 +405,42 @@ export interface ChaosInfo {
   scenarios: ChaosScenario[]
   status: ChaosStatus
 }
+
+/** One injectable failure from sim/blast_radius.py. */
+export interface BlastFault {
+  kind: string
+  target: string
+  value: number
+  label: string
+}
+
+export interface BlastRadiusReport {
+  job_id?: string
+  strategy: string
+  deadline_ms?: number | null
+  baseline: {
+    latency_ms: number | null
+    headroom_pct: number | null
+    broken: boolean
+    nodes: string[]
+    cost_total?: number | null
+    co2_g?: number | null
+  }
+  search: {
+    fault_space: number
+    combined: number
+    max_depth: number
+    evaluations: number
+    duration_s: number
+    truncated: boolean
+  }
+  minimal_breaking_sets: {
+    size: number
+    faults: BlastFault[]
+    latency_ms: number | null
+    infeasible: boolean
+  }[]
+  worst_single_faults: (BlastFault & { latency_ms: number | null; headroom_pct: number | null })[]
+  verdict: string
+  most_common_fault: (BlastFault & { sets: number }) | null
+}
