@@ -11,6 +11,7 @@ import { JobManager } from './components/manage/JobManager'
 import { LinkManager } from './components/manage/LinkManager'
 import { NodeManager } from './components/manage/NodeManager'
 import { ReservationsPanel } from './components/manage/ReservationsPanel'
+import { WhatIfPanel } from './components/manage/WhatIfPanel'
 import { NodesTable } from './components/NodesTable'
 import { ObservationPanel } from './components/ObservationPanel'
 import { Overview } from './components/Overview'
@@ -26,6 +27,7 @@ const TABS = [
   { id: 'links', label: 'Links' },
   { id: 'jobs', label: 'Jobs' },
   { id: 'chaos', label: 'Chaos & Faults' },
+  { id: 'whatif', label: 'What-if' },
   { id: 'reservations', label: 'Reservations' },
 ] as const
 type TabId = (typeof TABS)[number]['id']
@@ -199,6 +201,8 @@ export default function App() {
             <EventsFeed intervalMs={intervalMs} />
           </>
         )}
+
+        {tab === 'whatif' && <WhatIfPanel snapshot={snapshot.data} />}
 
         {tab === 'reservations' && <ReservationsPanel snapshot={snapshot.data} />}
       </main>

@@ -30,6 +30,8 @@ POST   /overrides/reset           clear every injected fault
 POST   /blast_radius              { job|job_id, strategy?, depth?, branch? }
                                   smallest fault sets that break a job
 GET    /bundle                    download a reproducible incident bundle (zip)
+POST   /whatif                    { changes, jobs?, strategy?, faults? }
+                                  plan the catalogue with and without a change
 
 Run
 ---
@@ -58,6 +60,7 @@ from flask import Flask, Response, jsonify, request
 from .chaos_runner import ChaosRunner
 from .economics import Economics, annotate_plan
 from .state import DTState, link_key, safe_float, safe_int, valid_name
+from .whatif import ChangeError, compare
 from .cost_model import CostModel
 from .exporters import as_dtdl, as_k8s_crds
 from .policy.resilient import FederatedPlanner
@@ -67,7 +70,7 @@ from .policy.greedy import GreedyPlanner
 from .self_heal import ResourceGuardian, SelfHealingController
 from .noise import maybe_start_noise
 
-from sim.blast_radius import BlastRadiusSearch
+from sim.blast_radius import BlastRadiusSearch, Fault
 from tools.bundle import build_bundle, describe, read_manifest
 
 try:
@@ -855,6 +858,57 @@ def chaos_start():
 @app.post("/chaos/stop")
 def chaos_stop():
     return _ok({"stopped": CHAOS.stop()})
+
+
+@app.post("/whatif")
+def whatif():
+    """Compare the fabric as-is against a proposed change.
+
+    Answers capacity questions ("would two more GPU nodes fix our misses?")
+    without touching the live twin: both sides are forks loaded from disk and
+    nothing is persisted.
+    """
+    if not request.is_json:
+        return _err("expected JSON body")
+    body = request.get_json() or {}
+    changes = body.get("changes")
+    if not isinstance(changes, dict) or not changes:
+        return _err("missing 'changes'")
+
+    jobs = body.get("jobs")
+    if isinstance(jobs, list) and jobs and all(isinstance(j, dict) for j in jobs):
+        catalogue = jobs
+    else:
+        wanted = set(jobs or [])
+        catalogue = [
+            entry["job"] for entry in _load_job_catalog() if not wanted or entry["id"] in wanted
+        ]
+    if not catalogue:
+        return _err("no jobs to evaluate")
+    catalogue = catalogue[: max(1, min(int(safe_float(body.get("job_limit"), 8)), 25))]
+
+    faults = [
+        Fault(str(spec["kind"]), str(spec["target"]), safe_float(spec.get("value"), 0.0))
+        for spec in (body.get("faults") or [])
+        if isinstance(spec, dict) and spec.get("kind") and spec.get("target")
+    ]
+
+    try:
+        report = compare(
+            nodes_dir=str(STATE.nodes_dir),
+            topology_path=str(STATE.topology_path),
+            overrides_path=str(STATE.overrides_path),
+            jobs=catalogue,
+            changes=changes,
+            strategy=str(body.get("strategy") or "greedy"),
+            faults=faults,
+        )
+    except ChangeError as exc:
+        return _err(str(exc))
+    except Exception:
+        app.logger.exception("/whatif failed")
+        return _err("what-if comparison failed", status=500)
+    return _ok(report)
 
 
 @app.get("/bundle")

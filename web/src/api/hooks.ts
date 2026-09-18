@@ -267,3 +267,15 @@ export function useBlastRadius() {
       api.blastRadius(params),
   })
 }
+
+/** What-if comparison; expensive, so user-triggered rather than a query. */
+export function useWhatIf() {
+  return useMutation({
+    mutationFn: (body: {
+      changes: Record<string, unknown>
+      strategy?: string
+      faults?: { kind: string; target: string; value?: number }[]
+      jobs?: string[]
+    }) => api.whatIf(body),
+  })
+}

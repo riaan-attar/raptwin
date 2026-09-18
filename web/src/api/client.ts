@@ -13,6 +13,7 @@ import type {
   Snapshot,
   Strategy,
   TopologyInfo,
+  WhatIfReport,
 } from './types'
 
 /** Vite proxies /api -> the Flask DT API, stripping the prefix (see vite.config.ts). */
@@ -161,6 +162,14 @@ export const api = {
         deadline_ms: params.deadlineMs,
       }),
     }),
+
+  whatIf: (body: {
+    changes: Record<string, unknown>
+    strategy?: string
+    faults?: { kind: string; target: string; value?: number }[]
+    jobs?: string[]
+  }) =>
+    request<WhatIfReport>('/whatif', { method: 'POST', body: JSON.stringify(body) }),
 
   resetOverrides: () =>
     request<{ nodes_reset: number; links_reset: number; chaos_stopped: boolean }>(
