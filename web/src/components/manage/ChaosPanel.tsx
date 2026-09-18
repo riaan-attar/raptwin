@@ -182,6 +182,10 @@ export function MaintenancePanel({ snapshot }: { snapshot?: Snapshot }) {
           </Notice>
         </div>
       )}
+      <p className="mt-3 text-[11px] text-muted-2">
+        A bundle is one zip with the fabric, jobs, faults in force and the live
+        snapshot/events/plans — the artifact to attach to a bug report.
+      </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Button variant="good" disabled={reset.isPending} onClick={() => void doReset()}>
           {reset.isPending ? 'Resetting…' : 'Reset all faults'}
@@ -189,6 +193,14 @@ export function MaintenancePanel({ snapshot }: { snapshot?: Snapshot }) {
         <Button disabled={clearPlans.isPending} onClick={() => void doClear()}>
           Clear plan history
         </Button>
+        {/* Plain link, so the browser streams the zip straight from the API. */}
+        <a
+          href="/api/bundle"
+          download
+          className="cursor-pointer rounded-lg border border-[#2a3a4f] bg-[#192434] px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:border-[#3f5876]"
+        >
+          Download incident bundle
+        </a>
       </div>
     </Card>
   )

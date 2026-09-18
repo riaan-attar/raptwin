@@ -29,6 +29,7 @@ POST   /chaos/stop
 POST   /overrides/reset           clear every injected fault
 POST   /blast_radius              { job|job_id, strategy?, depth?, branch? }
                                   smallest fault sets that break a job
+GET    /bundle                    download a reproducible incident bundle (zip)
 
 Run
 ---
@@ -67,6 +68,7 @@ from .self_heal import ResourceGuardian, SelfHealingController
 from .noise import maybe_start_noise
 
 from sim.blast_radius import BlastRadiusSearch
+from tools.bundle import build_bundle, describe, read_manifest
 
 try:
     from .policy.bandit import BanditPolicy
@@ -853,6 +855,42 @@ def chaos_start():
 @app.post("/chaos/stop")
 def chaos_stop():
     return _ok({"stopped": CHAOS.stop()})
+
+
+@app.get("/bundle")
+def bundle():
+    """Everything needed to reproduce what the twin is doing right now.
+
+    Captures the fabric, the job catalogue, the faults in force and the live
+    evidence (snapshot, recent events and plans) as one zip — the artifact to
+    attach to a bug report or a paper.
+    """
+    note = request.args.get("note")
+    try:
+        data = build_bundle(
+            nodes_dir=Path(STATE.nodes_dir),
+            topology_path=Path(STATE.topology_path),
+            jobs_dir=_jobs_root(),
+            overrides_path=Path(STATE.overrides_path),
+            snapshot=STATE.snapshot(),
+            events=STATE.recent_events(limit=200),
+            plans=list(RECENT_PLANS),
+            note=note,
+            extra={"source": "api"},
+        )
+    except Exception:
+        app.logger.exception("/bundle failed")
+        return _err("building the bundle failed", status=500)
+
+    stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
+    return Response(
+        data,
+        mimetype="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="raptwin-incident-{stamp}.zip"',
+            "Content-Length": str(len(data)),
+        },
+    )
 
 
 @app.post("/blast_radius")
