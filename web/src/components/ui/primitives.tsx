@@ -7,15 +7,19 @@ export function Card({
   actions,
   children,
   className,
+  ref,
 }: {
   title?: ReactNode
   subtitle?: ReactNode
   actions?: ReactNode
   children: ReactNode
   className?: string
+  /** For callers that need the element itself, e.g. requestFullscreen(). */
+  ref?: React.Ref<HTMLElement>
 }) {
   return (
     <section
+      ref={ref}
       className={cn(
         'rounded-xl border border-edge bg-panel p-4 shadow-[0_6px_20px_rgba(0,0,0,0.25)]',
         className,
