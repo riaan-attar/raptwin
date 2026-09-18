@@ -80,7 +80,11 @@ def build_planner(name: str, state: DTState, cm: CostModel) -> Tuple[Any, Option
     return GreedyPlanner(state, cm, cfg=base), None
 
 
-def plan_once(planner, mode: Optional[str], job: Dict[str, Any]) -> Dict[str, Any]:
+def plan_once(
+    planner, mode: Optional[str], job: Dict[str, Any], *, dry_run: bool = True
+) -> Dict[str, Any]:
+    """Plan one job. `dry_run=False` commits reservations, which models
+    contention between consecutive jobs — only safe on a throwaway state."""
     if mode is not None:  # FederatedPlanner takes the mode as an argument
-        return planner.plan_job(job, dry_run=True, mode=mode)
-    return planner.plan_job(job, dry_run=True)
+        return planner.plan_job(job, dry_run=dry_run, mode=mode)
+    return planner.plan_job(job, dry_run=dry_run)

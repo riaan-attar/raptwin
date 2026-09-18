@@ -444,3 +444,50 @@ export interface BlastRadiusReport {
   verdict: string
   most_common_fault: (BlastFault & { sets: number }) | null
 }
+
+/** One side of a what-if comparison (dt/whatif.py). */
+export interface WhatIfSide {
+  jobs: {
+    job_id?: string
+    latency_ms: number | null
+    deadline_ms: number | null
+    met: boolean
+    infeasible: boolean
+    cost_total?: number | null
+    co2_g?: number | null
+    nodes: string[]
+  }[]
+  met: number
+  total: number
+  sla_pct: number
+  mean_ms: number | null
+  p95_ms: number | null
+  cost_total: number | null
+  co2_g: number | null
+  fabric: { nodes: number; links: number; cpu_cores: number; gpu_vram_gb: number }
+}
+
+export interface WhatIfDelta {
+  before: number
+  after: number
+  diff: number
+  pct: number | null
+}
+
+export interface WhatIfReport {
+  strategy: string
+  contention: boolean
+  changes: string[]
+  faults: string[]
+  baseline: WhatIfSide
+  variant: WhatIfSide
+  deltas: {
+    sla_pct: WhatIfDelta | null
+    p95_ms: WhatIfDelta | null
+    mean_ms: WhatIfDelta | null
+    cost_total: WhatIfDelta | null
+    co2_g: WhatIfDelta | null
+    nodes: WhatIfDelta | null
+  }
+  verdict: string
+}
