@@ -51,14 +51,15 @@ its lifetime.
 ## Managing the fabric
 
 Everything can be changed from the tabs in the header; each view also works as a
-deep link (`/#nodes`, `/#links`, `/#jobs`, `/#chaos`, `/#reservations`).
+deep link (`/#nodes`, `/#links`, `/#jobs`, `/#chaos`, `/#whatif`, `/#reservations`).
 
 | Tab | What you can do | Persists to |
 | --- | --- | --- |
 | Nodes | add, edit (form or full JSON descriptor), duplicate, rename, delete, take down / bring up | `nodes/<name>.yaml` |
 | Links | add, edit, delete declared links; take links down; drop runtime-only links | `links:` block of `sim/topology.yaml` |
 | Jobs | create, edit stages, test-fit (dry run), delete | `jobs/*.yaml` |
-| Chaos & Faults | run / stop topology scenarios in-process, reset all faults, inject single observations, clear plan history | runtime only |
+| Chaos & Faults | run / stop topology scenarios, reset all faults, inject single observations, clear plan history, find a job's blast radius, download an incident bundle | runtime only |
+| What-if | compare the fabric against a proposed change (add / remove / upgrade nodes, links), optionally during an outage | nothing — both sides are forks |
 | Reservations | release one, filtered, or all | runtime only |
 
 Saving a link rewrites only the `links:` block of `topology.yaml`; the other

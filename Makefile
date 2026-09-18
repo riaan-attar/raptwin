@@ -52,7 +52,7 @@ POLICY_LIMIT ?= 6
 # ---------- meta ----------
 .PHONY: help install venv deps freeze clean format lint \
         run-api run-ui gen-nodes validate-nodes summarize-nodes export-csv \
-        plan policy-benchmark demo montecarlo chaos \
+        plan policy-benchmark demo montecarlo chaos gate gate-baseline blast-radius bundle \
         docker-launch docker-clean \
         web-install web-dev web-build web-preview web-check
 
@@ -71,6 +71,10 @@ help:
 	@echo   export-csv       - export last plan(s) to CSV
 	@echo   plan             - plan $(JOBS_FILE) locally dry-run
 	@echo   policy-benchmark - benchmark planners and plot metrics
+	@echo   gate             - run the resilience gate (ci/gate.yaml thresholds)
+	@echo   gate-baseline    - record ci/baseline.json from the current code
+	@echo   blast-radius     - smallest fault set that breaks JOB=<id>
+	@echo   bundle           - export a reproducible incident bundle
 	@echo   demo             - send demo jobs (local); see vars NUM, WORKERS
 	@echo   montecarlo       - run Monte Carlo simulation
 	@echo   chaos            - apply chaos schedule from $(TOPO_FILE)
@@ -207,6 +211,18 @@ plan:
 
 policy-benchmark:
 	$(ACT) $(SEP) $(PY) -m tools.policy_benchmark --jobs $(POLICY_JOBS) --strategies $(POLICY_STRATEGIES) --out $(POLICY_PLOT) --json-out $(POLICY_JSON) --limit $(POLICY_LIMIT)
+
+gate:
+	$(ACT) $(SEP) $(PY) -m tools.ci_gate --json-out reports/gate.json --md-out reports/gate.md
+
+gate-baseline:
+	$(ACT) $(SEP) $(PY) -m tools.ci_gate --json-out ci/baseline.json --quiet
+
+blast-radius:
+	$(ACT) $(SEP) $(PY) -m sim.blast_radius --job $${JOB:-job-vision-large} --depth $${DEPTH:-2}
+
+bundle:
+	$(ACT) $(SEP) $(PY) -m tools.bundle export --out $${OUT:-incident.zip} --note "$${NOTE:-manual capture}"
 
 demo:
 	$(ACT) $(SEP) $(PY) -m planner.submit_demo \
