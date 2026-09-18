@@ -12,11 +12,12 @@ A self-contained digital-twin and planning sandbox for experimenting with job pl
 7. [Workload planning workflows](#workload-planning-workflows)
 8. [Chaos and fault-injection experiments](#chaos-and-fault-injection-experiments)
 9. [Monte-Carlo and policy evaluation](#monte-carlo-and-policy-evaluation)
-10. [Experiment reproduction and digital twin validation](#experiment-reproduction-and-digital-twin-validation)
-11. [Docker-based fabric emulation](#docker-based-fabric-emulation)
-12. [Makefile shortcuts](#makefile-shortcuts)
-13. [Running tests and quality checks](#running-tests-and-quality-checks)
-14. [Troubleshooting](#troubleshooting)
+10. [Cost, resilience and planning tools](#cost-resilience-and-planning-tools)
+11. [Experiment reproduction and digital twin validation](#experiment-reproduction-and-digital-twin-validation)
+12. [Docker-based fabric emulation](#docker-based-fabric-emulation)
+13. [Makefile shortcuts](#makefile-shortcuts)
+14. [Running tests and quality checks](#running-tests-and-quality-checks)
+15. [Troubleshooting](#troubleshooting)
 
 ## Fresh machine setup
 Follow these steps on a clean Ubuntu, Debian, or macOS host. Replace `apt` commands with your platform's package manager when necessary.
@@ -58,7 +59,8 @@ Follow these steps on a clean Ubuntu, Debian, or macOS host. Replace `apt` comma
 ├── dt/            # Core state machine, cost model, reservation engine, policies, API
 ├── planner/       # CLI clients for submitting jobs locally or to a remote API
 ├── sim/           # Synthetic node generator, chaos engine, Monte-Carlo runner
-├── tools/         # Validation, reporting, and export utilities
+├── tools/         # Validation, reporting, export, CI gate, bundles, cluster import
+├── ci/            # Resilience-gate thresholds and the committed baseline
 ├── ui/            # Flask dashboard for monitoring and manual control
 ├── nodes/         # Sample node descriptors (YAML) produced by sim/gen_nodes.py
 ├── jobs/          # Example job definitions (YAML/JSON)
@@ -300,6 +302,105 @@ The script samples jobs (up to `--limit`), runs each strategy, and emits a plot 
 - `python -m tools.export_csv --inputs reports/montecarlo.csv --outdir reports/summary`
 - `python -m tools.summarize_nodes --dir nodes/ --md reports/nodes.md`
 - `python -m tools.validate_nodes --dir nodes/ --apply-defaults`
+
+## Cost, resilience and planning tools
+
+Four capabilities built on top of the twin. Each has a CLI, an API endpoint, or both.
+
+### Money and carbon on every plan (`dt/economics.py`)
+
+`sim/topology.yaml` declares `defaults.pricing` and `defaults.energy`; the twin now
+reads them, so every `/plan` response carries `cost_total`, a
+`cost_breakdown` (compute rental / electricity / egress), `co2_g` and `energy_kwh`.
+Two strategies optimise for them:
+
+```bash
+curl -s localhost:8080/economics                     # prices in force
+curl -s -X POST localhost:8080/plan -H 'Content-Type: application/json' \
+  -d '{"job": {...}, "strategy": "greenest", "dry_run": true}'
+```
+
+Carbon intensity and electricity price can vary per zone under
+`defaults.energy.zones.<zone>`, so a solar site is not charged like a coal grid.
+
+Scoring uses per-hour *rates*, not absolute cost: a 300 ms stage rents hardware for
+300 ms, so absolute cost is ~0 for every candidate and cannot discriminate at any
+weight. Tune with `FABRIC_COST_WEIGHT` / `FABRIC_CARBON_WEIGHT` (default 25),
+read as "ms of latency traded per unit of currency, or per gram of CO2, per hour".
+
+### Resilience gate for CI (`tools/ci_gate.py`)
+
+Chaos-tests a *scheduling change* before it merges:
+
+```bash
+python -m tools.ci_gate                                # thresholds from ci/gate.yaml
+python -m tools.ci_gate --baseline ci/baseline.json    # regression mode
+```
+
+Replays fault schedules, plans the catalogue at every point on the timeline and
+exits non-zero if worst-case SLA, p95 latency, cost or CO2 breaches a threshold or
+regresses against the baseline. `.github/workflows/resilience-gate.yml` runs it on
+pull requests. Thresholds, scenarios (including inline ones) and the
+`deadline_scale` sensitivity knob live in `ci/gate.yaml`.
+
+### Blast-radius finder (`sim/blast_radius.py`)
+
+The inverse of chaos replay — searches for the smallest fault set that breaks a job:
+
+```bash
+python -m sim.blast_radius --job job-vision-large --depth 2
+```
+
+```
+  fragile: 3 single fault(s) break this job
+    [1] zone cloudlet blacked out  ->  1455.63 ms
+  Most implicated fault: zone cloudlet blacked out
+```
+
+Breadth-first over set size, so reported sets are minimal. Also `POST /blast_radius`
+and a panel on the dashboard's Chaos & Faults tab.
+
+### What-if capacity planning (`dt/whatif.py`)
+
+Forks the twin, applies a proposed change, replays the catalogue through both sides
+and diffs SLA, p95, cost, CO2 and fabric size:
+
+```bash
+curl -s -X POST localhost:8080/whatif -H 'Content-Type: application/json' \
+  -d '{"changes": {"clone_nodes": [{"from": "hpc-053", "count": 2}]}}'
+```
+
+Change sets support `clone_nodes`, `add_nodes`, `remove_nodes`, `patch_nodes`,
+`links` and `remove_links`, and `faults` can be applied to both sides ("does this
+purchase hold up during an outage?"). Planning commits reservations on the forks, so
+jobs contend for capacity — without that, extra capacity looks worthless. Nothing is
+persisted. Dashboard: the **What-if** tab.
+
+### Incident bundles (`tools/bundle.py`)
+
+One zip that reproduces a run — fabric, jobs, faults in force, plus the live
+snapshot, events and plans, with the commit in the manifest:
+
+```bash
+python -m tools.bundle export --out incident.zip --note "planner picked a dead node"
+python -m tools.bundle inspect incident.zip
+python -m tools.bundle import incident.zip --into /tmp/replay
+curl -sO -J localhost:8080/bundle        # same thing from a running API
+```
+
+### Import a twin from a real cluster (`tools/import_cluster.py`)
+
+The inverse of `dt/exporters.py`:
+
+```bash
+kubectl get nodes -o json | python -m tools.import_cluster --out nodes/ --dry-run
+```
+
+Maps capacity, architecture, zone labels, GPU resources and readiness into node
+descriptors. Kubernetes cannot describe power draw, thermal behaviour, storage wear
+or links, so those are written as documented defaults and listed in the summary:
+imported fabrics give believable *placement*, but energy, carbon and risk numbers are
+only as good as those defaults.
 
 ## Experiment reproduction and digital twin validation
 Recreate the evaluation suite from the project report and quantify how closely the digital twin mirrors injected scenarios.

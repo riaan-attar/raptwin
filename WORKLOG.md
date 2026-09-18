@@ -164,3 +164,90 @@ called `resilient`". Extracted one factory with the alias table, so the strategy
 vocabulary is identical everywhere and a gate verdict describes the same planner
 the dashboard runs. Bandit/RL policies built there get no `persist_path`, so a
 throwaway planner cannot write learned state into `sim/`.
+
+### 2.5 Incident bundles ✅ — `tools/bundle.py`
+
+One zip that reproduces a run: fabric, job catalogue, faults in force, plus the
+live snapshot, events and plans, with the commit recorded in the manifest.
+
+```bash
+python -m tools.bundle export --out incident.zip --note "planner picked a dead node"
+python -m tools.bundle inspect incident.zip
+python -m tools.bundle import incident.zip --into /tmp/replay
+```
+
+- `GET /bundle` streams the same zip; the dashboard has a **Download incident
+  bundle** button on Chaos & Faults. A capture of the live fabric is ~116 KB.
+- Import refuses a non-empty destination without `--force` and rejects path
+  traversal — bundles arrive from bug reports, so their paths are untrusted.
+- 11 tests in `tests/test_bundle.py`, including a round trip that loads the
+  unpacked bundle back into `DTState` and checks the captured fault is in force
+  again.
+
+### 2.6 Import a twin from a real cluster ✅ — `tools/import_cluster.py`
+
+The inverse of `dt/exporters.py`, so nobody hand-writes 100 descriptors:
+
+```bash
+kubectl get nodes -o json | python -m tools.import_cluster --out nodes/ --dry-run
+```
+
+Maps capacity (with Kubernetes quantity suffixes: `16Gi`, `65851236Ki`, `250m`),
+architecture, zone labels, GPU resources, instance type, control-plane role and
+readiness. 24 tests in `tests/test_import_cluster.py`, including a check that the
+written files load into the twin with capacity intact.
+
+**Honest limitation, stated in the tool's own output:** a Kubernetes node object
+says nothing about power draw, thermal behaviour, storage wear, links or trust.
+Those get documented defaults, so an imported fabric gives believable *placement*
+but its energy, carbon and risk numbers are only as good as those defaults.
+
+### 2.7 What-if capacity planning ✅ — `dt/whatif.py`
+
+Forks the twin, applies a change, replays the catalogue through both sides, diffs
+SLA / p95 / cost / CO2 / fabric size. `POST /whatif` plus a **What-if** tab.
+
+Change sets: `clone_nodes`, `add_nodes`, `remove_nodes`, `patch_nodes` (deep
+merge), `links`, `remove_links`. `faults` apply to both sides, so the question
+becomes "does this purchase hold up during an outage?". 18 tests.
+
+**Fidelity decision worth reviewing:** planning on the forks **commits**
+reservations, so consecutive jobs contend for capacity. With dry-run planning
+every job independently picks the single best node and added capacity looks
+worthless — a test pins both behaviours. The same caveat applies to the CI gate,
+which still plans dry-run: it measures each job against a fresh fabric, not
+against a loaded one. Changing that would require re-baselining, so I left it and
+noted it here.
+
+---
+
+## 3. Verification
+
+- **113 Python tests pass** (`python -m pytest tests`), up from 3 at the start of
+  the session. `npx tsc -b` clean; `npx oxlint` reports only two pre-existing
+  warnings in files this session did not touch; `npx vite build` succeeds.
+- **Browser end-to-end** (headless Chrome, against a scratch copy of the repo so
+  your real `nodes/`, `jobs/` and `topology.yaml` were never touched): planned a
+  job with the `greenest` strategy and checked cost/CO2 reach the Overview KPIs
+  and the Recent Plans table; ran a blast-radius search and asserted it reported
+  a fragile verdict naming the implicated node; downloaded an incident bundle;
+  ran a what-if with +2 nodes and again during a zone outage; checked a 420px
+  viewport for horizontal overflow. No console errors.
+- **Deployed and verified live** (see below).
+
+## 4. Open questions for you
+
+1. **`rl-markov` costs ~75x more than `greedy`** on the sample fabric (₹0.894 vs
+   ₹0.012) because it spreads stages across sites and pays egress. Genuine defect
+   in the MDP network penalty, or intended behaviour?
+2. **Chaos permanently biases the twin's forecasts.** `POST /overrides/reset`
+   clears `dyn` faults but not predictive history, so a fabric that has run chaos
+   plans differently until the process restarts. Should reset rewind forecasts?
+3. **The sample fabric is ~3-4x over-provisioned** for the sample catalogue, which
+   is why several features read "no measurable difference" out of the box. Worth
+   adding a deliberately tight catalogue (or a smaller fabric) so the tools have
+   something to bite on in demos and in the paper.
+4. **Link profiles are still ignored on load** (`future.md` §4): `IB-400G` plans as
+   a default 10 Gbps / 1 ms link. Every latency number for profile-only links is
+   wrong, and fixing it changes planner results, so it needs a re-baseline. This
+   is the highest-value correctness fix outstanding.
