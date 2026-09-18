@@ -1,0 +1,51 @@
+name: Resilience gate
+
+# Chaos-tests the *scheduler* before it merges: replays fault schedules against
+# the twin and fails the build if worst-case SLA or latency regresses against
+# ci/baseline.json. See tools/ci_gate.py.
+
+on:
+  pull_request:
+    paths:
+      - 'dt/**'
+      - 'sim/**'
+      - 'planner/**'
+      - 'nodes/**'
+      - 'jobs/**'
+      - 'ci/**'
+      - 'tools/ci_gate.py'
+      - '.github/workflows/resilience-gate.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # The gate only needs the state engine and planners, not the analytics
+      # stack (numpy/pandas/matplotlib) from requirements.txt.
+      - name: Install dependencies
+        run: pip install --quiet pyyaml
+
+      - name: Run resilience gate
+        run: |
+          python -m tools.ci_gate \
+            --baseline ci/baseline.json \
+            --json-out reports/gate.json \
+            --md-out reports/gate.md
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resilience-gate
+          path: reports/gate.*
+          if-no-files-found: ignore

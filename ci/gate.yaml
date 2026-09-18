@@ -1,0 +1,37 @@
+# Thresholds for tools/ci_gate.py — the resilience gate run in CI.
+#
+#   python -m tools.ci_gate                       # uses this file
+#   python -m tools.ci_gate --min-sla 95          # flags override it
+#
+# Every value here is also a CLI flag; see `python -m tools.ci_gate --help`.
+
+jobs: [jobs]            # files or directories of job descriptors
+job_limit: 6            # 0 = the whole catalogue (slower)
+strategies: [greedy, resilient]
+scenarios:
+  - default                 # the top-level chaos: list in topology.yaml
+  - core_link_cut           # a named scenario from topology.yaml
+  # Inline scenarios keep the gate self-contained. The bundled schedules were
+  # written to demo the dashboard and barely move SLA on a 100-node fabric;
+  # this one takes out the zones the planners actually prefer.
+  - name: gate_capacity_squeeze
+    chaos:
+      - { kind: zone_blackout, label: zone, value: rackC, at_s: 1, duration_s: 600 }
+      - { kind: zone_blackout, label: zone, value: cloudlet, at_s: 2, duration_s: 600 }
+      - { kind: zone_blackout, label: zone, value: lab, at_s: 3, duration_s: 600 }
+      - { kind: zone_blackout, label: zone, value: rackA, at_s: 4, duration_s: 600 }
+      - { kind: zone_blackout, label: zone, value: rackB, at_s: 5, duration_s: 600 }
+seed: 7                 # seeds bandit/RL randomness so verdicts are stable
+checkpoints: 6          # timeline samples per scenario
+
+# The catalogue runs at roughly a third of its stated deadlines, so SLA stays at
+# 100% even with most of the fabric down. Scaling deadlines makes the gate a
+# margin test: "does the fabric still hold at 40% of the deadline budget?"
+deadline_scale: 0.28
+
+min_sla: 80.0                # fail if worst-case SLA compliance drops below this
+max_regression: 2.0          # fail if worst SLA drops this many points vs --baseline
+max_p95_regression_pct: 10.0 # fail if worst p95 grows this much vs --baseline
+max_p95_ms: null
+max_cost: null
+max_co2: null

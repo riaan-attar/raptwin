@@ -1,0 +1,676 @@
+{
+  "passed": true,
+  "commit": "beeb84b2ccd7",
+  "seed": 7,
+  "jobs": 6,
+  "job_ids": [
+    "job-vision-small",
+    "job-vision-large",
+    "job-nlp-pipeline",
+    "job-analytics-batch",
+    "job-mixed-stream",
+    "job-cv-no-gpu"
+  ],
+  "strategies": [
+    "greedy",
+    "resilient"
+  ],
+  "scenarios": [
+    "default",
+    "core_link_cut",
+    {
+      "name": "gate_capacity_squeeze",
+      "chaos": [
+        {
+          "kind": "zone_blackout",
+          "label": "zone",
+          "value": "rackC",
+          "at_s": 1,
+          "duration_s": 600
+        },
+        {
+          "kind": "zone_blackout",
+          "label": "zone",
+          "value": "cloudlet",
+          "at_s": 2,
+          "duration_s": 600
+        },
+        {
+          "kind": "zone_blackout",
+          "label": "zone",
+          "value": "lab",
+          "at_s": 3,
+          "duration_s": 600
+        },
+        {
+          "kind": "zone_blackout",
+          "label": "zone",
+          "value": "rackA",
+          "at_s": 4,
+          "duration_s": 600
+        },
+        {
+          "kind": "zone_blackout",
+          "label": "zone",
+          "value": "rackB",
+          "at_s": 5,
+          "duration_s": 600
+        }
+      ]
+    }
+  ],
+  "deadline_scale": 0.28,
+  "thresholds": {
+    "min_sla": 80.0,
+    "max_p95_regression_pct": 10.0,
+    "max_p95_ms": null,
+    "max_cost": null,
+    "max_co2": null,
+    "max_regression": 2.0
+  },
+  "baseline": null,
+  "duration_s": 12.44,
+  "results": [
+    {
+      "scenario": "default",
+      "strategy": "greedy",
+      "events": 10,
+      "samples": [
+        {
+          "label": "baseline",
+          "at_s": 0.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after link_degrade",
+          "at_s": 5.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after node_kill",
+          "at_s": 12.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after link_loss_spike",
+          "at_s": 22.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 34.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after federation_partition",
+          "at_s": 52.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after revert federation_partition",
+          "at_s": 80.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        }
+      ],
+      "worst_sla_pct": 100.0,
+      "mean_sla_pct": 100.0,
+      "worst_p95_ms": 1260.44,
+      "peak_cost": 0.032841,
+      "peak_co2_g": 0.0161
+    },
+    {
+      "scenario": "default",
+      "strategy": "resilient",
+      "events": 10,
+      "samples": [
+        {
+          "label": "baseline",
+          "at_s": 0.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        },
+        {
+          "label": "after link_degrade",
+          "at_s": 5.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        },
+        {
+          "label": "after node_kill",
+          "at_s": 12.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        },
+        {
+          "label": "after link_loss_spike",
+          "at_s": 22.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 34.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1718.48,
+          "mean_ms": 1313.44,
+          "cost_total": 1.585789,
+          "co2_g": 0.0191
+        },
+        {
+          "label": "after federation_partition",
+          "at_s": 52.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1720.62,
+          "mean_ms": 1306.31,
+          "cost_total": 1.585328,
+          "co2_g": 0.017
+        },
+        {
+          "label": "after revert federation_partition",
+          "at_s": 80.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1720.62,
+          "mean_ms": 1306.31,
+          "cost_total": 1.585328,
+          "co2_g": 0.017
+        }
+      ],
+      "worst_sla_pct": 83.33,
+      "mean_sla_pct": 83.33,
+      "worst_p95_ms": 1720.62,
+      "peak_cost": 1.585789,
+      "peak_co2_g": 0.0191
+    },
+    {
+      "scenario": "core_link_cut",
+      "strategy": "greedy",
+      "events": 16,
+      "samples": [
+        {
+          "label": "baseline",
+          "at_s": 0.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after link_degrade",
+          "at_s": 5.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after link_down",
+          "at_s": 12.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after node_kill",
+          "at_s": 12.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after node_kill",
+          "at_s": 18.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after link_loss_spike",
+          "at_s": 22.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 34.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after revert federation_partition",
+          "at_s": 80.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        }
+      ],
+      "worst_sla_pct": 100.0,
+      "mean_sla_pct": 100.0,
+      "worst_p95_ms": 1260.44,
+      "peak_cost": 0.032841,
+      "peak_co2_g": 0.0161
+    },
+    {
+      "scenario": "core_link_cut",
+      "strategy": "resilient",
+      "events": 16,
+      "samples": [
+        {
+          "label": "baseline",
+          "at_s": 0.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        },
+        {
+          "label": "after link_degrade",
+          "at_s": 5.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        },
+        {
+          "label": "after link_down",
+          "at_s": 12.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        },
+        {
+          "label": "after node_kill",
+          "at_s": 12.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        },
+        {
+          "label": "after node_kill",
+          "at_s": 18.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        },
+        {
+          "label": "after link_loss_spike",
+          "at_s": 22.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 34.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1718.48,
+          "mean_ms": 1313.44,
+          "cost_total": 1.585789,
+          "co2_g": 0.0191
+        },
+        {
+          "label": "after revert federation_partition",
+          "at_s": 80.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1720.62,
+          "mean_ms": 1306.31,
+          "cost_total": 1.585328,
+          "co2_g": 0.017
+        }
+      ],
+      "worst_sla_pct": 83.33,
+      "mean_sla_pct": 83.33,
+      "worst_p95_ms": 1720.62,
+      "peak_cost": 1.585789,
+      "peak_co2_g": 0.0191
+    },
+    {
+      "scenario": "gate_capacity_squeeze",
+      "strategy": "greedy",
+      "events": 10,
+      "samples": [
+        {
+          "label": "baseline",
+          "at_s": 0.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 1.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 2.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1429.82,
+          "mean_ms": 1139.54,
+          "cost_total": 0.618215,
+          "co2_g": 0.016
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 3.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1457.52,
+          "mean_ms": 1154.02,
+          "cost_total": 0.618985,
+          "co2_g": 0.0182
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 4.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1315.34,
+          "mean_ms": 1098.51,
+          "cost_total": 0.034436,
+          "co2_g": 0.0178
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 5.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1315.34,
+          "mean_ms": 1098.51,
+          "cost_total": 0.034436,
+          "co2_g": 0.0178
+        },
+        {
+          "label": "after revert zone_blackout",
+          "at_s": 605.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1260.44,
+          "mean_ms": 1050.39,
+          "cost_total": 0.032841,
+          "co2_g": 0.0161
+        }
+      ],
+      "worst_sla_pct": 100.0,
+      "mean_sla_pct": 100.0,
+      "worst_p95_ms": 1457.52,
+      "peak_cost": 0.618985,
+      "peak_co2_g": 0.0182
+    },
+    {
+      "scenario": "gate_capacity_squeeze",
+      "strategy": "resilient",
+      "events": 10,
+      "samples": [
+        {
+          "label": "baseline",
+          "at_s": 0.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 1.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1570.88,
+          "mean_ms": 1282.43,
+          "cost_total": 1.371256,
+          "co2_g": 0.0205
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 2.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1732.33,
+          "mean_ms": 1321.96,
+          "cost_total": 1.586271,
+          "co2_g": 0.0198
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 3.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1605.7,
+          "mean_ms": 1299.19,
+          "cost_total": 1.371917,
+          "co2_g": 0.0198
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 4.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1620.76,
+          "mean_ms": 1326.71,
+          "cost_total": 1.314346,
+          "co2_g": 0.0189
+        },
+        {
+          "label": "after zone_blackout",
+          "at_s": 5.0,
+          "jobs": 6,
+          "met": 6,
+          "infeasible": 0,
+          "sla_pct": 100.0,
+          "p95_ms": 1593.5,
+          "mean_ms": 1259.0,
+          "cost_total": 0.972067,
+          "co2_g": 0.0196
+        },
+        {
+          "label": "after revert zone_blackout",
+          "at_s": 605.0,
+          "jobs": 6,
+          "met": 5,
+          "infeasible": 0,
+          "sla_pct": 83.33,
+          "p95_ms": 1545.61,
+          "mean_ms": 1267.42,
+          "cost_total": 1.370187,
+          "co2_g": 0.0157
+        }
+      ],
+      "worst_sla_pct": 83.33,
+      "mean_sla_pct": 85.71,
+      "worst_p95_ms": 1732.33,
+      "peak_cost": 1.586271,
+      "peak_co2_g": 0.0205
+    }
+  ],
+  "failures": []
+}
