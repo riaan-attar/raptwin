@@ -233,7 +233,12 @@ noted it here.
   a fragile verdict naming the implicated node; downloaded an incident bundle;
   ran a what-if with +2 nodes and again during a zone outage; checked a 420px
   viewport for horizontal overflow. No console errors.
-- **Deployed and verified live** (see below).
+- **Resilience gate passes against its own committed baseline** after every
+  refactor in this session (`python -m tools.ci_gate --baseline ci/baseline.json`,
+  exit 0).
+- **Deployed and verified live** on https://raptwin.seloraos.online — every new
+  endpoint answers 200, a `greenest` plan returns cost 0.001229 INR / 0.0008 g CO2,
+  `/whatif` and `/blast_radius` return real reports, `/bundle` streams 116 KB.
 
 ## 4. Open questions for you
 
