@@ -68,3 +68,43 @@ Scoring uses per-hour *rates*, not absolute cost: a 300 ms stage rents hardware
 for 300 ms, so absolute cost is ~0 for every candidate and cannot discriminate at
 any weight. Weights (`FABRIC_COST_WEIGHT`, `FABRIC_CARBON_WEIGHT`, default 25)
 read as "ms of latency traded per unit of currency, or per gram of CO2, per hour".
+
+### 2.2 Chaos-as-CI resilience gate ✅ — `tools/ci_gate.py`
+
+Tests a *scheduling change* before it merges, the way unit tests guard code.
+
+```bash
+python -m tools.ci_gate                                  # uses ci/gate.yaml
+python -m tools.ci_gate --baseline ci/baseline.json      # regression mode
+```
+
+- Replays fault schedules against the twin, plans the job catalogue at each point
+  on the timeline, and fails (exit 1) if worst-case SLA, p95 latency, cost or CO2
+  breaches a threshold — or regresses against `ci/baseline.json`.
+- Thresholds live in `ci/gate.yaml`; every one is also a CLI flag.
+- `.github/workflows/resilience-gate.yml` runs it on PRs touching `dt/`, `sim/`,
+  `planner/`, `nodes/`, `jobs/`, writes a markdown summary to the run page and
+  uploads the report. CI needs only `pip install pyyaml` (verified in a clean venv,
+  also on Python 3.14).
+- Deterministic: fixed schedules, dry-run planning, `--seed` for bandit/RL. A test
+  asserts two runs produce byte-identical results, and another asserts the gate
+  leaves `nodes/` and `topology.yaml` untouched.
+- 19 tests in `tests/test_ci_gate.py`, including one that keeps `ci/gate.yaml` and
+  `ci/baseline.json` in step so CI never compares apples to oranges.
+
+**Calibration was the real work here, and it exposed three things:**
+
+1. **The bundled chaos scenarios barely dent this fabric.** With 100 nodes and
+   deadlines ~3.5x actual latency, SLA compliance stayed at 100% even after
+   blacking out 66 of 100 nodes. A gate that always passes is worthless, so the
+   gate ships its own harsher inline scenario (`gate_capacity_squeeze`) and a
+   `deadline_scale` knob (0.28) that turns it into a margin test. Latency, not
+   SLA, is the sensitive signal here: greedy's p95 moves 1260 → 1457 ms under
+   the squeeze while SLA never budges.
+2. **`resilient` is materially slower than `greedy`** — p95 1720 vs 1260 ms, and
+   at a tightened deadline it meets 83% of SLAs where greedy meets 100%. It buys
+   fallback coverage with latency. That trade is worth stating explicitly in the
+   paper rather than presenting Resilient as a strict improvement.
+3. **My first sampling design measured the wrong thing.** Checkpointing evenly
+   across the schedule landed mostly on *revert* events, which heal damage, so it
+   reported recovery instead of peak damage. It now samples only after damage.
