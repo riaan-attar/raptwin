@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080c14" />
+      <stop offset="50%" stop-color="#0e1726" />
+      <stop offset="100%" stop-color="#05080f" />
+    </linearGradient>
+
+    <radialGradient id="glowCyan" cx="20%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.22" />
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="glowPurple" cx="80%" cy="70%" r="50%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.20" />
+      <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
+    </radialGradient>
+
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.75" />
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.85" />
+    </linearGradient>
+
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="40%" stop-color="#e0f2fe" />
+      <stop offset="100%" stop-color="#7dd3fc" />
+    </linearGradient>
+
+    <linearGradient id="authorGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#c084fc" />
+    </linearGradient>
+
+    <linearGradient id="accentLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8" />
+      <stop offset="50%" stop-color="#818cf8" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Node Glow Filter -->
+    <filter id="nodeGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.75" stroke-opacity="0.4" />
+    </pattern>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="1200" height="630" fill="url(#bgGrad)" />
+  <rect width="1200" height="630" fill="url(#grid)" />
+  <circle cx="250" cy="200" r="450" fill="url(#glowCyan)" />
+  <circle cx="950" cy="400" r="400" fill="url(#glowPurple)" />
+
+  <!-- Network Topology Lines (Right / Center Graphic) -->
+  <g opacity="0.45" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 4">
+    <line x1="720" y1="130" x2="880" y2="180" />
+    <line x1="880" y1="180" x2="1060" y2="140" />
+    <line x1="880" y1="180" x2="940" y2="310" />
+    <line x1="720" y1="130" x2="780" y2="280" />
+    <line x1="780" y1="280" x2="940" y2="310" />
+    <line x1="940" y1="310" x2="1100" y2="290" />
+    <line x1="1060" y1="140" x2="1100" y2="290" />
+    <line x1="780" y1="280" x2="840" y2="440" />
+    <line x1="940" y1="310" x2="840" y2="440" />
+    <line x1="940" y1="310" x2="1020" y2="460" />
+    <line x1="1100" y1="290" x2="1020" y2="460" />
+    <line x1="840" y1="440" x2="1020" y2="460" />
+  </g>
+
+  <!-- High-Tech Nodes -->
+  <g filter="url(#nodeGlow)">
+    <circle cx="720" cy="130" r="7" fill="#38bdf8" />
+    <circle cx="880" cy="180" r="10" fill="#818cf8" />
+    <circle cx="1060" cy="140" r="8" fill="#38bdf8" />
+    <circle cx="780" cy="280" r="9" fill="#34d399" />
+    <circle cx="940" cy="310" r="14" fill="#60a5fa" />
+    <circle cx="1100" cy="290" r="8" fill="#a78bfa" />
+    <circle cx="840" cy="440" r="11" fill="#38bdf8" />
+    <circle cx="1020" cy="460" r="9" fill="#f472b6" />
+  </g>
+
+  <!-- Left Content Card / Layout -->
+  <g transform="translate(80, 70)">
+    <!-- Top Meta Badges -->
+    <g>
+      <!-- Domain Pill -->
+      <rect x="0" y="0" width="220" height="34" rx="17" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.8" />
+      <circle cx="18" cy="17" r="5" fill="#22c55e" />
+      <text x="32" y="22" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#bae6fd" letter-spacing="0.5">raptwin.seloraos.online</text>
+
+      <!-- Category Pill -->
+      <rect x="232" y="0" width="215" height="34" rx="17" fill="#1e1b4b" stroke="#818cf8" stroke-width="1.2" stroke-opacity="0.6" />
+      <text x="248" y="22" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#c7d2fe" letter-spacing="1">DISTRIBUTED DIGITAL TWIN</text>
+    </g>
+
+    <!-- Main Title -->
+    <text x="0" y="115" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="800" fill="url(#textGrad)" letter-spacing="-1.5">
+      RAP Twin
+    </text>
+
+    <!-- Subtitle / Tagline -->
+    <text x="0" y="165" font-family="system-ui, -apple-system, sans-serif" font-size="25" font-weight="600" fill="#93c5fd" letter-spacing="-0.5">
+      Autonomous Distributed Fabric Simulator &amp; Self-Healing Engine
+    </text>
+
+    <!-- Descriptive Summary -->
+    <text x="0" y="210" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="400" fill="#94a3b8">
+      Realtime CloudEvent SSE stream, AI multi-stage workload scheduler,
+    </text>
+    <text x="0" y="235" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="400" fill="#94a3b8">
+      chaos fault-injection, and proactive fabric guardian reconciliation.
+    </text>
+
+    <!-- Accent Divider Line -->
+    <rect x="0" y="270" width="560" height="2" fill="url(#accentLine)" rx="1" />
+
+    <!-- Feature Pillars -->
+    <g transform="translate(0, 300)">
+      <!-- Pill 1 -->
+      <g transform="translate(0, 0)">
+        <rect width="180" height="36" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1" />
+        <text x="14" y="23" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="500" fill="#e2e8f0">⚡ SSE Event-Driven</text>
+      </g>
+      <!-- Pill 2 -->
+      <g transform="translate(192, 0)">
+        <rect width="195" height="36" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1" />
+        <text x="14" y="23" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="500" fill="#e2e8f0">🛡️ Self-Healing Guardian</text>
+      </g>
+      <!-- Pill 3 -->
+      <g transform="translate(399, 0)">
+        <rect width="180" height="36" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1" />
+        <text x="14" y="23" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="500" fill="#e2e8f0">🔮 What-If Analysis</text>
+      </g>
+    </g>
+
+    <!-- Author Badge (The Core Key Ranking Requirement) -->
+    <g transform="translate(0, 370)">
+      <rect width="580" height="66" rx="14" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.5" />
+      <!-- Avatar Circle with Glowing Initials -->
+      <circle cx="36" cy="33" r="21" fill="#1e293b" stroke="#38bdf8" stroke-width="2" />
+      <text x="27" y="39" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#38bdf8">RA</text>
+
+      <text x="70" y="26" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="700" fill="#64748b" letter-spacing="1.2">ARCHITECTED &amp; DEVELOPED BY</text>
+      <text x="70" y="49" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800" fill="url(#authorGrad)" letter-spacing="0.2">Riaan Attar</text>
+
+      <!-- Verified Badge -->
+      <g transform="translate(485, 23)">
+        <rect width="78" height="22" rx="11" fill="#1e3a5f" />
+        <text x="12" y="15" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#38bdf8">AUTHOR</text>
+      </g>
+    </g>
+  </g>
+</svg>

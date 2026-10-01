@@ -1,0 +1,50 @@
+# Robots.txt for RAP Twin (raptwin.seloraos.online)
+# Architected and Developed by Riaan Attar
+# Autonomous Distributed Fabric Digital Twin Engine
+
+User-agent: *
+Allow: /
+Allow: /api/health
+Allow: /api/snapshot
+Disallow: /api/control/
+Disallow: /api/chaos/
+
+# Sitemaps
+Sitemap: https://raptwin.seloraos.online/sitemap.xml
+
+# Search Engine Crawlers
+User-agent: Googlebot
+Allow: /
+Allow: /*.js$
+Allow: /*.css$
+Allow: /*.svg$
+Allow: /*.png$
+Allow: /*.json$
+
+User-agent: Googlebot-Image
+Allow: /
+Allow: /favicon.svg
+Allow: /og-image.png
+Allow: /og-image.svg
+
+User-agent: Bingbot
+Allow: /
+Allow: /*.js$
+Allow: /*.css$
+Allow: /*.svg$
+Allow: /*.png$
+
+User-agent: Applebot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
