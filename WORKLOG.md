@@ -256,3 +256,20 @@ noted it here.
    a default 10 Gbps / 1 ms link. Every latency number for profile-only links is
    wrong, and fixing it changes planner results, so it needs a re-baseline. This
    is the highest-value correctness fix outstanding.
+
+---
+
+## 5. Intense SEO & Knowledge Graph Optimization (01 Oct 2026)
+
+- **Target Entities & Keywords**: Target entity "Riaan Attar", "RAP Twin", "raptwin.seloraos.online", distributed fabric digital twin, autonomous self-healing, AI scheduling, chaos testing.
+- **Schema.org Multi-Entity Graph (JSON-LD)**: Connected `Person` (`Riaan Attar`), `SoftwareApplication` (`RAP Twin`), `WebSite`, and `BreadcrumbList`.
+- **Search Assets**:
+  - `web/public/robots.txt` with crawling directives for all major search engines and sitemap reference.
+  - `web/public/sitemap.xml` with priority hierarchy (1.0 home, 0.85 core features).
+  - `web/public/site.webmanifest` for PWA / search snippet rich metadata.
+  - `web/public/og-image.svg` & rendered `web/public/og-image.png` (1200x630px social card).
+- **SPA Crawler Fallback**: Added rich semantic `<noscript>` content with heading hierarchy and internal links so non-JS web crawlers index full context.
+- **Dynamic Title & Footer**: Dynamic tab titles in `App.tsx` (`... | Riaan Attar`) and authoritative footer attributing Riaan Attar.
+- **Caddyfile**: Configured security headers (`nosniff`, `SAMEORIGIN`, `strict-origin-when-cross-origin`) and caching headers for high Core Web Vitals score.
+- **Deployment**: Pushed to GitHub `main` and synced to VPS `/srv/raptwin`.
+

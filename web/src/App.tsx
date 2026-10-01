@@ -53,10 +53,24 @@ const FALLBACK_MS = 2000
 /** Safety-net poll while streaming, to heal any missed event. */
 const SAFETY_NET_MS = 30000
 
+const TAB_TITLES: Record<TabId, string> = {
+  dashboard: 'RAP Twin — Distributed Fabric Dashboard | Riaan Attar',
+  nodes: 'Nodes Management — RAP Twin Fabric Simulator | Riaan Attar',
+  links: 'Fabric Links & Interconnects — RAP Twin | Riaan Attar',
+  jobs: 'Job Composer & AI Workload Fitting — RAP Twin | Riaan Attar',
+  chaos: 'Chaos Testing & Autonomous Self-Healing — RAP Twin | Riaan Attar',
+  whatif: 'What-If Topology & Capacity Analysis — RAP Twin | Riaan Attar',
+  reservations: 'Fabric Resource Reservations — RAP Twin | Riaan Attar',
+}
+
 export default function App() {
   const [live, setLive] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState(0)
   const [tab, setTab] = useHashTab()
+
+  useEffect(() => {
+    document.title = TAB_TITLES[tab] ?? 'RAP Twin — Distributed Fabric Digital Twin | Riaan Attar'
+  }, [tab])
 
   const stream = useEventStream({ enabled: live })
   const streaming = stream.status === 'live'
@@ -206,6 +220,50 @@ export default function App() {
 
         {tab === 'reservations' && <ReservationsPanel snapshot={snapshot.data} />}
       </main>
+
+      <footer className="mt-12 border-t border-edge bg-gradient-to-t from-[#080d14] to-bg px-6 py-8 text-xs text-muted-2">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-ink">RAP Twin</span>
+              <span>— Autonomous Distributed Fabric Simulator &amp; Digital Twin Engine</span>
+            </div>
+            <p className="mt-1 text-muted">
+              Architected and Developed by{' '}
+              <a
+                href="https://github.com/riaan-attar"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-accent hover:underline"
+              >
+                Riaan Attar
+              </a>{' '}
+              · Official Domain:{' '}
+              <a href="https://raptwin.seloraos.online" className="text-ink hover:underline">
+                raptwin.seloraos.online
+              </a>
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-4 text-muted">
+            <a href="#dashboard" onClick={() => setTab('dashboard')} className="hover:text-ink">Overview</a>
+            <a href="#nodes" onClick={() => setTab('nodes')} className="hover:text-ink">Nodes</a>
+            <a href="#links" onClick={() => setTab('links')} className="hover:text-ink">Links</a>
+            <a href="#jobs" onClick={() => setTab('jobs')} className="hover:text-ink">Jobs</a>
+            <a href="#chaos" onClick={() => setTab('chaos')} className="hover:text-ink">Chaos</a>
+            <a href="#whatif" onClick={() => setTab('whatif')} className="hover:text-ink">What-If</a>
+            <a href="#reservations" onClick={() => setTab('reservations')} className="hover:text-ink">Reservations</a>
+            <span className="text-edge-2">|</span>
+            <a
+              href="https://github.com/riaan-attar/raptwin"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline"
+            >
+              GitHub Source
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

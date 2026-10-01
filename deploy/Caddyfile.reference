@@ -25,6 +25,21 @@ raptwin.seloraos.online {
 	handle {
 		encode gzip zstd
 		root * /srv/raptwin/web/dist
+
+		# Security & SEO performance headers
+		header {
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "SAMEORIGIN"
+			Referrer-Policy "strict-origin-when-cross-origin"
+			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		}
+
+		# Asset caching headers for high PageSpeed performance scores
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		header /robots.txt Cache-Control "public, max-age=86400"
+		header /sitemap.xml Cache-Control "public, max-age=86400"
+		header /og-image.* Cache-Control "public, max-age=604800"
+
 		try_files {path} /index.html
 		file_server
 	}
