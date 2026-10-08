@@ -52,7 +52,7 @@ POLICY_LIMIT ?= 6
 # ---------- meta ----------
 .PHONY: help install venv deps freeze clean format lint \
         run-api run-ui gen-nodes validate-nodes summarize-nodes export-csv \
-        plan policy-benchmark demo montecarlo chaos gate gate-baseline blast-radius bundle \
+        plan policy-benchmark demo montecarlo chaos mqtt-bridge gate gate-baseline srs-table blast-radius bundle \
         docker-launch docker-clean \
         web-install web-dev web-build web-preview web-check
 
@@ -73,6 +73,8 @@ help:
 	@echo   policy-benchmark - benchmark planners and plot metrics
 	@echo   gate             - run the resilience gate (ci/gate.yaml thresholds)
 	@echo   gate-baseline    - record ci/baseline.json from the current code
+	@echo   srs-table        - measure + write real numbers into the SRS benchmark table
+	@echo   mqtt-bridge      - subscribe to fabric/# on an MQTT broker, forward to /observe
 	@echo   blast-radius     - smallest fault set that breaks JOB=<id>
 	@echo   bundle           - export a reproducible incident bundle
 	@echo   demo             - send demo jobs (local); see vars NUM, WORKERS
@@ -215,6 +217,10 @@ policy-benchmark:
 gate:
 	$(ACT) $(SEP) $(PY) -m tools.ci_gate --json-out reports/gate.json --md-out reports/gate.md
 
+srs-table:
+	$(ACT) $(SEP) $(PY) -m tools.benchmark_srs_table
+	$(ACT) $(SEP) $(PY) -m tools.update_srs_docx
+
 gate-baseline:
 	$(ACT) $(SEP) $(PY) -m tools.ci_gate --json-out ci/baseline.json --quiet
 
@@ -236,6 +242,9 @@ montecarlo:
 
 chaos:
 	$(ACT) $(SEP) $(PY) -m sim.chaos --topology $(TOPO_FILE) $$( [ -z "$$SCENARIO" ] && echo "" || echo "--scenario $$SCENARIO" ) --run
+
+mqtt-bridge:
+	$(ACT) $(SEP) $(PY) -m sim.mqtt_bridge --broker-host $${BROKER_HOST:-localhost} --broker-port $${BROKER_PORT:-1883} --dt http://$(API_HOST):$(API_PORT)/observe -v
 
 docker-launch:
 	$(ACT) $(SEP) $(PY) -m fabric_docker.launch_fabric --nodes $(NODES_DIR) --topology $(TOPO_FILE) --network fabric-net --image alpine:3.20 --prefix fab- --tc none
