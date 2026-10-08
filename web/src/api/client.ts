@@ -19,6 +19,16 @@ import type {
 /** Vite proxies /api -> the Flask DT API, stripping the prefix (see vite.config.ts). */
 const BASE = '/api'
 
+/**
+ * Baked in at build time (`VITE_API_KEY=... npm run build`) when the API's
+ * FABRIC_API_KEY gate is enabled on mutating routes (see dt/api.py). Empty in
+ * every other build, matching the backend: no key configured, no header sent,
+ * nothing changes. This is a deterrent against casual/scripted abuse, not
+ * real secrecy — it ships in the public JS bundle and is readable via any
+ * browser's dev tools.
+ */
+const API_KEY: string | undefined = import.meta.env.VITE_API_KEY || undefined
+
 export class ApiError extends Error {
   status?: number
 
@@ -30,10 +40,14 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (init?.body) headers['Content-Type'] = 'application/json'
+  if (API_KEY) headers['X-API-Key'] = API_KEY
+
   let res: Response
   try {
     res = await fetch(`${BASE}${path}`, {
-      headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: Object.keys(headers).length ? headers : undefined,
       ...init,
     })
   } catch (cause) {

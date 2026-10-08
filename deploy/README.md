@@ -34,6 +34,38 @@ terminates TLS (certificate issued automatically by Let's Encrypt).
 Override `RAPTWIN_SSH_HOST`, `RAPTWIN_REMOTE_DIR` or `RAPTWIN_DOMAIN` if any of
 those change.
 
+### API auth (FR-31)
+
+Mutating routes (add/delete node, links, jobs, chaos start/stop, overrides
+reset) can require an `X-API-Key` header — disabled by default, matching
+every deployment before this was added. To enable it:
+
+```bash
+RAPTWIN_API_KEY=$(openssl rand -hex 32) ./deploy/deploy.sh
+```
+
+This does two things in one run: writes the key to a systemd drop-in on the
+host (`/etc/systemd/system/raptwin-api.service.d/api-key.conf`, `chmod 600`,
+never touches the rsynced copy of `deploy/raptwin-api.service` so it can't
+leak back into the repo) and bakes the *same* value into the frontend build
+as `VITE_API_KEY`, so the dashboard's own management buttons keep working.
+That value ships in the public JS bundle — readable via any browser's dev
+tools. It raises the bar against casual/scripted abuse of the live demo; it
+is not secrecy against a motivated viewer.
+
+Never hardcode the key in this script or commit it anywhere. Pass it as an
+env var each time you redeploy with it enabled (`--web`-only or no-flag
+redeploys after that need `RAPTWIN_API_KEY` passed again too, or the next
+frontend rebuild will ship without it and the dashboard's mutations will
+start 401ing against a server that still expects it).
+
+To disable it again:
+
+```bash
+ssh oracle "sudo rm -f /etc/systemd/system/raptwin-api.service.d/api-key.conf && sudo systemctl daemon-reload && sudo systemctl restart raptwin-api"
+./deploy/deploy.sh --web    # rebuild the frontend without the key too
+```
+
 ## Service
 
 ```bash
