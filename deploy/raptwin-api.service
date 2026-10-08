@@ -24,6 +24,7 @@ RestartSec=3
 Environment=PYTHONUNBUFFERED=1
 Environment=HOME=/home/ubuntu
 Environment=FABRIC_ENABLE_NOISE=0
+# Environment=FABRIC_API_KEY=changeme  # enables auth on mutating routes (FR-31)
 
 [Install]
 WantedBy=multi-user.target
