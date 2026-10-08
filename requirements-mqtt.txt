@@ -1,0 +1,4 @@
+# Optional: event-driven telemetry ingestion (FR-29, sim/mqtt_bridge.py).
+# Kept out of requirements.txt so a normal install doesn't pull in MQTT
+# machinery nobody asked for.
+paho-mqtt>=2.1.0
