@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 dt/api.py — Flask API for the Fabric Digital Twin
 
@@ -33,6 +32,14 @@ GET    /bundle                    download a reproducible incident bundle (zip)
 POST   /whatif                    { changes, jobs?, strategy?, faults? }
                                   plan the catalogue with and without a change
 
+Auth (FR-31)
+------------
+Set FABRIC_API_KEY to require an `X-API-Key` header on destructive/mutating
+routes (add/delete node, links, jobs, clear plans, start/stop chaos, reset
+overrides). Unset (default): no auth, matching every prior deployment.
+Read-only routes and evaluation routes (/observe, /plan*, /release, /whatif,
+/blast_radius) are never gated, so the public dashboard needs no key.
+
 Run
 ---
 export FLASK_APP=dt.api:app
@@ -44,6 +51,7 @@ python3 -m dt.api --host 0.0.0.0 --port 8080
 """
 
 from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -51,27 +59,26 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
-from typing import Any, Deque, Dict, List, Optional, Tuple
-
 from queue import Empty
+from typing import Any
 
 from flask import Flask, Response, jsonify, request
 
+from sim.blast_radius import BlastRadiusSearch, Fault
+from tools.bundle import build_bundle
+
 from .chaos_runner import ChaosRunner
+from .cost_model import CostModel
 from .economics import Economics, annotate_plan
+from .exporters import as_dtdl, as_k8s_crds
+from .noise import maybe_start_noise
+from .policy.greedy import GreedyPlanner
+from .policy.mdp import MarkovPlanner
+from .policy.resilient import FederatedPlanner
+from .policy.rl_stub import RLPolicy
+from .self_heal import ResourceGuardian, SelfHealingController
 from .state import DTState, link_key, safe_float, safe_int, valid_name
 from .whatif import ChangeError, compare
-from .cost_model import CostModel
-from .exporters import as_dtdl, as_k8s_crds
-from .policy.resilient import FederatedPlanner
-from .policy.mdp import MarkovPlanner
-from .policy.rl_stub import RLPolicy
-from .policy.greedy import GreedyPlanner
-from .self_heal import ResourceGuardian, SelfHealingController
-from .noise import maybe_start_noise
-
-from sim.blast_radius import BlastRadiusSearch, Fault
-from tools.bundle import build_bundle, describe, read_manifest
 
 try:
     from .policy.bandit import BanditPolicy
@@ -97,7 +104,9 @@ MDP_PLANNER = MarkovPlanner(
     redundancy=3,
 )
 BANDIT_POLICY = (
-    BanditPolicy(persist_path=os.environ.get("FABRIC_BANDIT_STATE", "sim/bandit_state.json"))
+    BanditPolicy(
+        persist_path=os.environ.get("FABRIC_BANDIT_STATE", "sim/bandit_state.json")
+    )
     if BanditPolicy
     else None
 )
@@ -167,15 +176,23 @@ GREEDY_CARBON = GreedyPlanner(
 SELF_HEALER = SelfHealingController(
     STATE,
     poll_interval=safe_float(os.environ.get("FABRIC_SELF_HEAL_INTERVAL", 2.5), 2.5),
-    reliability_threshold=safe_float(os.environ.get("FABRIC_SELF_HEAL_RELIABILITY", 0.75), 0.75),
-    availability_threshold_sec=safe_float(os.environ.get("FABRIC_SELF_HEAL_AVAIL", 90.0), 90.0),
-    stability_window=int(safe_float(os.environ.get("FABRIC_SELF_HEAL_STABILITY", 2), 2)),
+    reliability_threshold=safe_float(
+        os.environ.get("FABRIC_SELF_HEAL_RELIABILITY", 0.75), 0.75
+    ),
+    availability_threshold_sec=safe_float(
+        os.environ.get("FABRIC_SELF_HEAL_AVAIL", 90.0), 90.0
+    ),
+    stability_window=int(
+        safe_float(os.environ.get("FABRIC_SELF_HEAL_STABILITY", 2), 2)
+    ),
 )
 
 RESOURCE_GUARDIAN = ResourceGuardian(
     STATE,
     poll_interval=safe_float(os.environ.get("FABRIC_GUARDIAN_INTERVAL", 5.0), 5.0),
-    utilization_threshold=safe_float(os.environ.get("FABRIC_GUARDIAN_UTIL", 0.92), 0.92),
+    utilization_threshold=safe_float(
+        os.environ.get("FABRIC_GUARDIAN_UTIL", 0.92), 0.92
+    ),
     reservation_ttl_sec=safe_float(os.environ.get("FABRIC_GUARDIAN_TTL", 300.0), 300.0),
 )
 
@@ -186,7 +203,7 @@ CHAOS = ChaosRunner(STATE)
 # Serialises edits to jobs/*.yaml so two saves can't interleave a rewrite.
 _JOBS_LOCK = threading.Lock()
 
-RECENT_PLANS: Deque[Dict[str, Any]] = deque(maxlen=200)
+RECENT_PLANS: deque[dict[str, Any]] = deque(maxlen=200)
 
 # How long an idle SSE connection waits before emitting a keepalive comment.
 SSE_KEEPALIVE_SEC = safe_float(os.environ.get("FABRIC_SSE_KEEPALIVE", 15.0), 15.0)
@@ -207,14 +224,56 @@ def _err(msg: str, status: int = 400, **extra):
     return jsonify({"ok": False, "error": msg, **extra}), status
 
 
+# -----------------------------------
+# Auth (FR-31)
+# -----------------------------------
+#
+# Destructive/mutating routes only — nodes, links and jobs can be created,
+# edited or deleted here, and chaos/faults can be injected into the live
+# twin. Read-only routes (snapshot, stream, topology, economics, ...) and
+# POST /observe / /plan* / /release / /whatif / /blast_radius (evaluations,
+# not persisted mutations) stay open so the public dashboard keeps working
+# without shipping a key into the frontend bundle.
+#
+# Read live from the environment (not cached at import) so tests can flip
+# FABRIC_API_KEY with monkeypatch without reloading this module.
+_GATED_ENDPOINTS = {
+    "add_node",
+    "delete_node",
+    "upsert_link",
+    "delete_link",
+    "save_job",
+    "delete_job",
+    "clear_plans",
+    "chaos_start",
+    "chaos_stop",
+    "overrides_reset",
+}
+
+
+@app.before_request
+def _require_api_key():
+    api_key = os.environ.get("FABRIC_API_KEY")
+    if not api_key:
+        return None  # auth disabled — matches every pre-FR-31 test/deployment
+    if request.endpoint not in _GATED_ENDPOINTS:
+        return None
+    import hmac
+
+    supplied = request.headers.get("X-API-Key", "")
+    if not hmac.compare_digest(supplied, api_key):
+        return _err("unauthorized", status=401)
+    return None
+
+
 def _jobs_root() -> Path:
     base = os.environ.get("FABRIC_JOBS_ROOT", "jobs")
     return Path(base).resolve()
 
 
-def _load_job_catalog() -> List[Dict[str, Any]]:
+def _load_job_catalog() -> list[dict[str, Any]]:
     root = _jobs_root()
-    entries: List[Dict[str, Any]] = []
+    entries: list[dict[str, Any]] = []
     if not root.exists():
         return entries
     for path in sorted(root.glob("*.y*ml")):
@@ -237,7 +296,7 @@ def _load_job_catalog() -> List[Dict[str, Any]]:
     return entries
 
 
-def _node_problem(desc: Dict[str, Any]) -> Optional[str]:
+def _node_problem(desc: dict[str, Any]) -> str | None:
     """Minimal sanity checks for a node descriptor coming from the UI.
 
     Full schema validation isn't enforced here: a quarter of the generated
@@ -267,9 +326,11 @@ def _node_problem(desc: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _job_problem(job: Dict[str, Any]) -> Optional[str]:
+def _job_problem(job: dict[str, Any]) -> str | None:
     if not valid_name(job.get("id")):
-        return "job id may only contain letters, digits, '.', '_' and '-' (max 64 chars)"
+        return (
+            "job id may only contain letters, digits, '.', '_' and '-' (max 64 chars)"
+        )
     stages = job.get("stages")
     if not isinstance(stages, list) or not stages:
         return "a job needs at least one stage"
@@ -289,12 +350,15 @@ def _job_problem(job: Dict[str, Any]) -> Optional[str]:
         for key, val in res.items():
             if safe_float(val, -1.0) < 0:
                 return f"stage '{sid}': resources.{key} must be a non-negative number"
-    if job.get("deadline_ms") is not None and safe_float(job.get("deadline_ms"), -1.0) < 0:
+    if (
+        job.get("deadline_ms") is not None
+        and safe_float(job.get("deadline_ms"), -1.0) < 0
+    ):
         return "deadline_ms must be a non-negative number"
     return None
 
 
-def _read_job_file(path: Path) -> Tuple[Any, List[Dict[str, Any]], str]:
+def _read_job_file(path: Path) -> tuple[Any, list[dict[str, Any]], str]:
     """(raw yaml, jobs in it, leading comment header) for a jobs/ file."""
     text = path.read_text(encoding="utf-8")
     header_lines = []
@@ -308,7 +372,9 @@ def _read_job_file(path: Path) -> Tuple[Any, List[Dict[str, Any]], str]:
     return raw, _ensure_jobs(raw), header
 
 
-def _write_job_file(path: Path, raw: Any, jobs: List[Dict[str, Any]], header: str) -> None:
+def _write_job_file(
+    path: Path, raw: Any, jobs: list[dict[str, Any]], header: str
+) -> None:
     if not jobs:
         path.unlink(missing_ok=True)
         return
@@ -324,14 +390,14 @@ def _write_job_file(path: Path, raw: Any, jobs: List[Dict[str, Any]], header: st
     path.write_text((header + "\n\n" if header else "") + body, encoding="utf-8")
 
 
-def _locate_job(job_id: str) -> Optional[Tuple[Path, int]]:
+def _locate_job(job_id: str) -> tuple[Path, int] | None:
     for entry in _load_job_catalog():
         if entry["id"] == job_id:
             return Path(entry["path"]), entry["index"]
     return None
 
 
-def _slim_plan_for_history(plan: Dict[str, Any]) -> Dict[str, Any]:
+def _slim_plan_for_history(plan: dict[str, Any]) -> dict[str, Any]:
     """Strip whole-fabric snapshots before a plan goes into RECENT_PLANS.
 
     ``predictive`` and ``federation_summary`` are point-in-time copies of the
@@ -342,19 +408,23 @@ def _slim_plan_for_history(plan: Dict[str, Any]) -> Dict[str, Any]:
     per-stage dump of every node the MDP planner scored.
     """
 
-    slim = {k: v for k, v in plan.items() if k not in ("predictive", "federation_summary")}
+    slim = {
+        k: v for k, v in plan.items() if k not in ("predictive", "federation_summary")
+    }
     stages = slim.get("per_stage")
     if isinstance(stages, list):
         slim["per_stage"] = [
-            {k: v for k, v in stage.items() if k != "candidate_details"}
-            if isinstance(stage, dict)
-            else stage
+            (
+                {k: v for k, v in stage.items() if k != "candidate_details"}
+                if isinstance(stage, dict)
+                else stage
+            )
             for stage in stages
         ]
     return slim
 
 
-def _ensure_jobs(obj: Any) -> List[Dict[str, Any]]:
+def _ensure_jobs(obj: Any) -> list[dict[str, Any]]:
     if isinstance(obj, list):
         return [item for item in obj if isinstance(item, dict)]
     if isinstance(obj, dict):
@@ -430,7 +500,14 @@ def plan():
             "load-balanced",
         }:
             planner_result = FED_PLANNER.plan_job(job, dry_run=dry_run, mode=strategy)
-        elif strategy in {"rl", "mdp", "rl-markov", "markov", "mdp-rl", "reinforcement"}:
+        elif strategy in {
+            "rl",
+            "mdp",
+            "rl-markov",
+            "markov",
+            "mdp-rl",
+            "reinforcement",
+        }:
             planner_result = MDP_PLANNER.plan_job(job, dry_run=dry_run)
         else:
             if strategy in {"cheapest-energy", "energy", "energy-aware"}:
@@ -439,14 +516,25 @@ def plan():
                 planner_obj = GREEDY_COST
             elif strategy in {"greenest", "low-carbon", "carbon", "carbon-aware"}:
                 planner_obj = GREEDY_CARBON
-            elif strategy in {"bandit", "bandit-greedy", "bandit-latency", "bandit-format"}:
-                planner_obj = GREEDY_BANDIT if GREEDY_BANDIT is not None else GREEDY_LATENCY
+            elif strategy in {
+                "bandit",
+                "bandit-greedy",
+                "bandit-latency",
+                "bandit-format",
+            }:
+                planner_obj = (
+                    GREEDY_BANDIT if GREEDY_BANDIT is not None else GREEDY_LATENCY
+                )
             else:
                 planner_obj = GREEDY_LATENCY
             planner_result = planner_obj.plan_job(job, dry_run=dry_run)
 
         ddl = safe_float(job.get("deadline_ms"), 0.0)
-        penalty = CM.slo_penalty(ddl, planner_result.get("latency_ms", 0.0)) if ddl > 0 else 0.0
+        penalty = (
+            CM.slo_penalty(ddl, planner_result.get("latency_ms", 0.0))
+            if ddl > 0
+            else 0.0
+        )
 
         planner_result["strategy"] = strategy_raw
         planner_result["dry_run"] = dry_run
@@ -457,7 +545,9 @@ def plan():
         planner_result["deadline_ms"] = ddl or None
         planner_result["slo_penalty"] = penalty
         planner_result["ts"] = int(time.time() * 1000)
-        planner_result.setdefault("avg_reliability", planner_result.get("avg_reliability"))
+        planner_result.setdefault(
+            "avg_reliability", planner_result.get("avg_reliability")
+        )
         planner_result["predictive"] = STATE.predictive_overview()
         # Money and carbon for every strategy, not just the cost-aware ones.
         annotate_plan(STATE, job, planner_result)
@@ -652,7 +742,9 @@ def add_node():
     persist = bool(body.get("persist", True))
     preserve_runtime = bool(body.get("preserve_runtime", True))
     try:
-        node = STATE.add_or_update_node(descriptor, persist=persist, preserve_runtime=preserve_runtime)
+        node = STATE.add_or_update_node(
+            descriptor, persist=persist, preserve_runtime=preserve_runtime
+        )
         return _ok({"node": node.get("name"), "persisted": persist})
     except ValueError as exc:
         return _err(str(exc))
@@ -704,7 +796,7 @@ def economics():
 
 @app.get("/topology")
 def topology():
-    raw: Dict[str, Any] = {}
+    raw: dict[str, Any] = {}
     try:
         if STATE.topology_path.exists():
             raw = yaml.safe_load(STATE.topology_path.read_text(encoding="utf-8")) or {}
@@ -718,13 +810,19 @@ def topology():
             if site.get("name")
         }
     )
-    qos = [q.get("name") for q in ((raw.get("defaults") or {}).get("routing") or {}).get("qos_classes") or []]
+    qos = [
+        q.get("name")
+        for q in ((raw.get("defaults") or {}).get("routing") or {}).get("qos_classes")
+        or []
+    ]
     return _ok(
         {
             "links": STATE.topology_link_specs(),
             "link_profiles": raw.get("link_profiles") or [],
             "sites": sites,
-            "subnets": [s.get("name") for s in (raw.get("subnets") or []) if s.get("name")],
+            "subnets": [
+                s.get("name") for s in (raw.get("subnets") or []) if s.get("name")
+            ],
             "qos_classes": [q for q in qos if q],
             "default_network": (raw.get("defaults") or {}).get("network") or {},
         }
@@ -800,7 +898,9 @@ def save_job():
             app.logger.exception("/jobs save failed")
             return _err("saving job failed", status=500)
 
-    STATE.emit_event("fabric.job.saved", {"job_id": job_id, "file": path.name}, subject=job_id)
+    STATE.emit_event(
+        "fabric.job.saved", {"job_id": job_id, "file": path.name}, subject=job_id
+    )
     return _ok({"id": job_id, "file": path.name, "created": not found})
 
 
@@ -819,7 +919,9 @@ def delete_job():
         except Exception:
             app.logger.exception("/jobs delete failed")
             return _err("deleting job failed", status=500)
-    STATE.emit_event("fabric.job.deleted", {"job_id": job_id, "file": path.name}, subject=job_id)
+    STATE.emit_event(
+        "fabric.job.deleted", {"job_id": job_id, "file": path.name}, subject=job_id
+    )
     return _ok({"id": job_id, "file": path.name})
 
 
@@ -881,14 +983,18 @@ def whatif():
     else:
         wanted = set(jobs or [])
         catalogue = [
-            entry["job"] for entry in _load_job_catalog() if not wanted or entry["id"] in wanted
+            entry["job"]
+            for entry in _load_job_catalog()
+            if not wanted or entry["id"] in wanted
         ]
     if not catalogue:
         return _err("no jobs to evaluate")
     catalogue = catalogue[: max(1, min(int(safe_float(body.get("job_limit"), 8)), 25))]
 
     faults = [
-        Fault(str(spec["kind"]), str(spec["target"]), safe_float(spec.get("value"), 0.0))
+        Fault(
+            str(spec["kind"]), str(spec["target"]), safe_float(spec.get("value"), 0.0)
+        )
         for spec in (body.get("faults") or [])
         if isinstance(spec, dict) and spec.get("kind") and spec.get("target")
     ]
