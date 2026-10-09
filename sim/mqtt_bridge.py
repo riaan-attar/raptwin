@@ -65,9 +65,7 @@ _TELEMETRY_SUFFIX = "/telemetry"
 # --------------------------------------------------------------------------
 
 
-def parse_telemetry_message(
-    topic: str, payload_bytes: bytes
-) -> dict[str, Any] | None:
+def parse_telemetry_message(topic: str, payload_bytes: bytes) -> dict[str, Any] | None:
     """MQTT (topic, payload) -> the exact dict POST /observe expects, or None.
 
     Never raises: a wire callback must not crash the subscribe loop on bad

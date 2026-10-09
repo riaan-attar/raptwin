@@ -142,9 +142,7 @@ def node_from_yaml(obj: dict[str, Any]) -> NodeSpec:
     )
 
 
-def find_rate_gbps(
-    topology: dict[str, Any] | None, node_name: str
-) -> float | None:
+def find_rate_gbps(topology: dict[str, Any] | None, node_name: str) -> float | None:
     if not topology:
         return None
     # explicit links first
