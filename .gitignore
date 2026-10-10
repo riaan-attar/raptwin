@@ -80,6 +80,7 @@ dmypy.json
 # OS metadata
 .DS_Store
 Thumbs.db
+.~lock.*#
 
 # Node frontend
 web/node_modules/

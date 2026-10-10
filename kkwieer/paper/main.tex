@@ -144,8 +144,9 @@ Researchers and engineers managing modern distributed computing fabrics (such as
 . Automated self-healing controllers, deterministic fault injection, and dry-run evaluations are essential characteristics which reduce the risk of real-world deployment failures and increase scheduling efficiency
 . The platform achieves robust policy optimization by combining pluggable scheduling algorithms (ranging from greedy and cheapest-energy to federated and RL-Markov models) alongside Monte-Carlo simulation tooling for large-scale benchmarking under uncertainty
 . Complex distributed states are managed by a Python-based backend (Flask API), and the simulated output is effectively visualized through a real-time web dashboard rendering topology maps, predictive health tracking, and job histories
-. The tool is perfect for organizations leveraging edge computing, smart manufacturing, and multi-cloud architectures because it allows for safe, closed-loop simulation and bulk policy evaluation on a local workstation
+. The tool is intended for organizations leveraging edge computing, smart manufacturing, and multi-cloud architectures because it allows for safe, closed-loop simulation and bulk policy evaluation on a local workstation
 . Recent additions extend the sandbox toward production parity: GPU-aware container provisioning for the containerized fabric launcher, event-driven telemetry ingestion via MQTT as an alternative to REST polling, and optional API-key authentication on mutating control-plane routes
+. Measured against the project's own fabric descriptors and job catalogue, three of its four scheduling strategies sustain a $100\%$ SLA hit rate under two chaos scenarios of differing severity, while the redundancy-focused Resilient strategy currently trades that margin away ($83.3\%$) -- a measured, reproducible finding rather than a projected one
 . By offering an automated, scalable, and intelligent emulation sandbox, this project seeks to transform how distributed scheduling policies are tested, eventually allowing organizations to evaluate workload resilience before deploying to physical infrastructure
 
 \vspace{0.3cm}
@@ -174,7 +175,7 @@ Unlike traditional static approaches, AI-empowered digital twins learn dynamical
 Recent international standardization efforts and research initiatives further emphasize the importance of advanced Digital Twin architectures. Organizations such as the Digital Twin Consortium (DTC), 3GPP, and ETSI have established frameworks to foster the integration of digital twins into next-generation communications and Industry 4.0 smart manufacturing \cite{dtc2020, iso23247}. 
 These standardization efforts encourage closed-loop interaction between physical assets and their digital counterparts, enhancing transparency, resource efficiency, and cross-domain interoperability.
 Despite these advantages, evaluating complex AI scheduling policies directly on production infrastructure presents severe operational risks, including estimation deviations between virtual models and physical states, high deployment costs, and potential catastrophic failures during link outages or thermal throttling.
-Therefore, this study presents RAP twin, a high-fidelity digital twin and planning sandbox designed to unite multi-strategy AI planning, predictive analytics, and Chaos Engineering to enable safe, closed-loop policy evaluation and statistical resilience benchmarking for distributed fabrics.
+Therefore, this study presents RAP twin, a high-fidelity digital twin and planning sandbox designed to unite multi-strategy AI planning, predictive analytics, and Chaos Engineering to enable safe, closed-loop policy evaluation and statistical resilience benchmarking for distributed fabrics. The evaluation in this paper targets that sandbox scale directly -- a 100-node local fabric model, not a live sub-millisecond 5G/6G deployment -- as a first step toward the field-scale motivation above; Section \ref{sec:threats} returns to that gap explicitly.
 
 
 \section{Literature Review} \fontsize{11}{13}\selectfont
@@ -240,7 +241,7 @@ To enable proactive, risk-aware scheduling, every state snapshot (\texttt{/snaps
 \begin{enumerate}
     \item \textbf{Per-Node Utilization Forecasting:} Evaluates historical resource trends and active job reservations to forecast impending resource exhaustion on CPU, GPU, and VRAM channels.
     \item \textbf{Thermal Derating \& Health Risk Scoring:} Calculates thermal throttling likelihood based on node power draw and ambient temperature trends, generating a real-time node reliability score.
-    \item \textbf{Wireless Channel Loss Variability:} Predicts link degradation and transmission delay variance across edge-end communication paths \cite{dai2024}.
+    \item \textbf{Wireless Channel Loss Variability:} Predicts link degradation and transmission delay variance across edge-end communication paths.
 \end{enumerate}
 
 \subsection{Module 3: Pluggable Multi-Strategy Planning Engine (\texttt{planner/})}
@@ -253,10 +254,12 @@ The planning engine routes submitted DAGs through a pluggable suite of schedulin
         \item \textit{Greedy Planner:} Assigns task stages using first-fit/best-fit available capacity matching.
         \item \textit{Cheapest-Energy Planner:} Optimizes node selection to minimize total system power consumption and carbon footprint.
     \end{itemize}
-    \item \textbf{Resilient \& Federated Planners:} Calculates network-aware placements with redundant fallback paths and risk-weighted scoring to guarantee SLA compliance under node degradation \cite{dai2024}.
-    \item \textbf{RL-Markov Planner (\texttt{dt/policy/mdp.py}):} Implements Reinforcement Learning based on a Markov Decision Process (MDP) formulation, balancing long-term reward exploration with immediate task latency minimization \cite{dai2024}.
+    \item \textbf{Resilient \& Federated Planners:} Calculates network-aware placements with redundant fallback paths and risk-weighted scoring to guarantee SLA compliance under node degradation. This is a heuristic risk-weighting scheme, not an implementation of any federated-learning method from the literature reviewed above.
+    \item \textbf{RL-Markov Planner (\texttt{dt/policy/mdp.py}):} Implements Reinforcement Learning based on a Markov Decision Process (MDP) formulation, balancing long-term reward exploration with immediate task latency minimization (see the cost-model description below).
     \item \textbf{Dry-Run Evaluation Mode:} Allows planners to simulate placement outcomes and return predicted Job Completion Time (JCT), energy draw, and SLA violation risks without committing actual fabric resource locks.
 \end{itemize}
+
+Internally, the RL-Markov planner treats node selection as a sequential decision problem and scores each candidate placement with a weighted Tchebycheff aggregation over nine cost terms -- latency, energy, risk, load, network, federation, RL-learned preference, reliability, and availability (\texttt{PlannerWeights} in \texttt{dt/policy/mdp.py}) -- rather than collapsing them into a single ad-hoc scalar. This Tchebycheff form keeps the optimizer honest about the Pareto shape of the trade-off: a placement that is excellent on one term and poor on another is penalized more than one that is merely mediocre across all of them, which a naive weighted sum would not distinguish. Dynamic programming backs up an expected value function across stages, discounted by $\gamma$ and folding in a failure penalty derived from per-stage risk; the result is paired with \texttt{dt/policy/rl\_stub.py}'s online Q-learning component described in Section 4.1.
 
 When a node descriptor declares a GPU (\texttt{gpu.type}, \texttt{vram\_gb}, \texttt{vendor}, \texttt{model}), the containerized fabric launcher (\texttt{fabric\_docker/launch\_fabric.py}) requests a matching Docker GPU device at container start-up, so simulated placements that assume GPU availability can be exercised against a real, GPU-backed container rather than a CPU-only stand-in.
 
@@ -364,11 +367,21 @@ When chaos experiments trigger node thermal spikes or link outages, RAP twin's a
 
 Measured SLA hit rates under the two chaos scenarios we tested range from $83.3\%$ to $100\%$ depending on strategy (Section \ref{sec:tradeoffs}); the controllers above are real and run in both conditions, but the project does not yet have a benchmark that isolates their individual contribution from the planner's own placement choice.
 
+\subsection{Threats to Validity}
+\label{sec:threats}
+We report the following limitations of the evaluation itself, separate from the system's design:
+\begin{itemize}
+    \item \textbf{Single-seed measurements.} Every number in Table \ref{tab:slo_benchmark} and Figures \ref{fig:jct_scaling}-\ref{fig:chaos_survival} comes from one run at a fixed seed (\texttt{seed=7}, matching \texttt{ci/gate.yaml}). We report point estimates, not distributions -- there is no repeated-trial variance or confidence interval anywhere in this evaluation, despite Module 5's Monte-Carlo tooling being capable of producing one. A reader should treat the $83.3\%$ vs.\ $100\%$ SLA gap in Section \ref{sec:tradeoffs} as a single-run observation worth following up with repeated trials, not a statistically established difference.
+    \item \textbf{Small evaluation scale.} The 100-node fabric and 11-job catalogue leave enough spare capacity that three of the four strategies saturate at $100\%$ SLA (Figure \ref{fig:jct_scaling}); the strategies are not under the kind of sustained resource pressure the Introduction's motivating scenario describes, so these results should not be read as evidence of behavior at larger scale.
+    \item \textbf{No external baseline.} All comparisons in this paper are among RAP twin's own four strategies. We do not compare against an external scheduler (e.g., a default Kubernetes scheduler) or reproduce any of the cited literature's own reported numbers, so no claim here should be read as a claim of superiority over prior work.
+    \item \textbf{Self-healing contribution is not isolated.} \texttt{SelfHealingController} and \texttt{ResourceGuardian} run throughout every measurement above; we have not run an ablation with them disabled, so their individual effect on the measured SLA numbers is unverified.
+\end{itemize}
+
 \subsection{Practical System Limitations and Future Outlook}
-While RAP twin provides a robust local emulation sandbox, several practical limitations present opportunities for future research:
+While RAP twin provides a robust local emulation sandbox, several practical directions remain for future work:
 \begin{itemize}
     \item \textbf{Resilient Planner Tuning:} As Section \ref{sec:tradeoffs} reports, the Resilient strategy's redundancy overhead currently costs it SLA margin rather than buying it resilience under a tight deadline-scale test; re-weighting \texttt{PlannerWeights} and re-running \texttt{tools/ci\_gate.py} against the same scenarios is the natural next step.
-    \item \textbf{Simulation Scale:} The current 100-node fabric and 11-job catalogue leave enough spare capacity that most strategies saturate at $100\%$ SLA (Figure \ref{fig:jct_scaling}); a larger job catalogue would be needed to reproduce the kind of scaling stress test the earlier draft described. MQTT-based telemetry ingestion (\texttt{sim/mqtt\_bridge.py}) is already available for event-driven updates at that scale; what remains is deploying it against a real sensor fleet rather than the REST polling path.
+    \item \textbf{Scaling the Evaluation:} A larger job catalogue and repeated-seed trials would both reproduce the kind of scaling stress test the earlier draft described and address the single-seed limitation above. MQTT-based telemetry ingestion (\texttt{sim/mqtt\_bridge.py}) is already available for event-driven updates at that scale; what remains is deploying it against a real sensor fleet rather than the REST polling path.
     \item \textbf{Real-World Hardware Testbeds:} Current validation relies on synthetic workloads and mathematical channel models. Future work will interface the \texttt{/observe} REST endpoint directly with physical 5G/6G edge testbeds and Kubernetes control planes via native Custom Resource Definitions (CRDs).
 \end{itemize}
 
@@ -389,6 +402,7 @@ Measured against the project's own benchmarking tools (\texttt{tools/policy\_ben
 
 By providing an automated, scalable, and reproducible emulation sandbox, RAP twin enables organizations and researchers to evaluate workload resilience and SLA compliance before deploying complex scheduling policies to physical infrastructure.
 
+\balance
 \printbibliography
 
 \end{document}
