@@ -1,0 +1,63 @@
+% Remove any automatic bibliography title and formatting
+\makeatletter
+\renewenvironment{thebibliography}[1]
+     {\list{\@biblabel{\@arabic\c@enumiv}}%
+           {\settowidth\labelwidth{\@biblabel{#1}}%
+            \leftmargin\labelwidth
+            \advance\leftmargin\labelsep
+            \@openbib@code
+            \usecounter{enumiv}%
+            \let\p@enumiv\@empty
+            \renewcommand\theenumiv{\@arabic\c@enumiv}}%
+      \sloppy
+      \clubpenalty4000
+      \@clubpenalty \clubpenalty
+      \widowpenalty4000%
+      \sfcode`\.\@m}
+     {\def\@noitemerr
+       {\@latex@warning{Empty `thebibliography' environment}}%
+      \endlist}
+\makeatother
+\begin{thebibliography}{99}
+% IEEE-style references, numbered to match in-body [N] citations.
+
+\bibitem{qi2019}
+Q. Qi, F. Tao, T. Zuo and A. Y. Nee, ``A review of digital twins in smart industries,'' \textit{IEEE Access}, vol. 7, pp. 14232--14252, Jan. 2019.
+
+\bibitem{fuller2020}
+A. Fuller, Z. Fan, C. Day and C. Barlow, ``Digital Twin: Enabling Technologies, Challenges and Open Research,'' \textit{IEEE Access}, vol. 8, pp. 108952--108971, June 2020.
+
+\bibitem{geyer2021}
+F. Geyer and S. Bondorf, ``Proximity-based service discovery for distributed digital twin systems,'' \textit{IEEE Access}, vol. 9, pp. 12456--12470, 2021.
+
+\bibitem{lv2022}
+Z. Lv, D. Chen, R. Lou, and H. Song, ``Digital Twins: A Survey on Enabling Technologies, Challenges, Trends, and Future Prospects,'' \textit{IEEE Communications Surveys \& Tutorials}, vol. 24, no. 1, pp. 54--87, 2022.
+
+\bibitem{grieves2022}
+M. Grieves and J. Vickers, ``Digital twins: Recent advances and future directions in engineering fields,'' \textit{Nature Reviews Methods Primers}, vol. 2, no. 1, pp. 1--18, Dec. 2022.
+
+\bibitem{wang2022}
+J. Wang, L. Ye and R. X. Gao, ``A simulation-based digital twin model for data-driven decision optimization,'' \textit{Journal of Manufacturing Systems}, vol. 62, pp. 245--258, Jan. 2022.
+
+\bibitem{kim2022}
+S. S. Kim, Y. J. Lee and M. G. Lee, ``Digital twin model with machine learning for real-time monitoring and predictive maintenance,'' \textit{International Journal of Precision Engineering and Manufacturing}, vol. 23, no. 5, pp. 565--578, May 2022.
+
+\bibitem{xu2023}
+C. Xu, Z. Tang, H. Yu, P. Zeng and L. Kong, ``Digital Twin-Driven Collaborative Scheduling for Heterogeneous Task and Edge-End Resource via Multi-Agent Deep Reinforcement Learning,'' \textit{IEEE Journal on Selected Areas in Communications}, vol. 41, no. 10, pp. 3056--3069, Oct. 2023.
+
+\bibitem{dai2024}
+Y. Dai, J. Zhao, J. Zhang, Y. Zhang and T. Jiang, ``Federated Deep Reinforcement Learning for Task Offloading in Digital Twin Edge Networks,'' \textit{IEEE Transactions on Network Science and Engineering}, vol. 11, no. 3, pp. 2849--2861, May-June 2024.
+
+\bibitem{sai2024}
+A. M. V. V. Sai, C. Wang, Z. Cai and Y. Li, ``Navigating the Digital Twin Network landscape: A survey on architecture, applications, privacy and security,'' \textit{High-Confidence Computing}, vol. 4, no. 4, p. 100269, Dec. 2024.
+
+\bibitem{raza2025}
+S. M. Raza, R. Minerva, N. Crespi, M. Alvi, M. Herath and H. Dutta, ``A comprehensive survey of Network Digital Twin architecture, capabilities, challenges, and requirements for Edge-Cloud Continuum,'' \textit{Computer Communications}, vol. 236, pp. 165--192, Jan. 2025.
+
+\bibitem{trandang2025}
+H. Tran-Dang and D.-S. Kim, ``Digital Twin-empowered intelligent computation offloading for edge computing in the era of 5G and beyond: A state-of-the-art survey,'' \textit{ICT Express}, vol. 11, no. 2, pp. 167--180, Apr. 2025.
+
+\bibitem{esen2026}
+E. Esen, A. Akbulut and C. Catal, ``Chaos experiments in microservice architectures: A systematic literature review,'' \textit{Computer Standards \& Interfaces}, vol. 97, p. 104116, 2026.
+
+\end{thebibliography}

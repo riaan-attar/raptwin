@@ -145,7 +145,8 @@ Researchers and engineers managing modern distributed computing fabrics (such as
 . The platform achieves robust policy optimization by combining pluggable scheduling algorithms (ranging from greedy and cheapest-energy to federated and RL-Markov models) alongside Monte-Carlo simulation tooling for large-scale benchmarking under uncertainty
 . Complex distributed states are managed by a Python-based backend (Flask API), and the simulated output is effectively visualized through a real-time web dashboard rendering topology maps, predictive health tracking, and job histories
 . The tool is perfect for organizations leveraging edge computing, smart manufacturing, and multi-cloud architectures because it allows for safe, closed-loop simulation and bulk policy evaluation on a local workstation
-. By offering an automated, scalable, and intelligent emulation sandbox, this project seeks to transform how distributed scheduling policies are tested, eventually allowing organizations to statistically guarantee workload resilience before deploying to expensive physical infrastructure
+. Recent additions extend the sandbox toward production parity: GPU-aware container provisioning for the containerized fabric launcher, event-driven telemetry ingestion via MQTT as an alternative to REST polling, and optional API-key authentication on mutating control-plane routes
+. By offering an automated, scalable, and intelligent emulation sandbox, this project seeks to transform how distributed scheduling policies are tested, eventually allowing organizations to evaluate workload resilience before deploying to physical infrastructure
 
 \vspace{0.3cm}
 \noindent\textbf{Keywords:}
@@ -230,8 +231,8 @@ At the core of RAP twin is the centralized state engine implemented via the \tex
 \begin{itemize}
     \item \textbf{Static Descriptor Parsing:} On startup, the state engine parses YAML files defining node hardware capabilities (CPU, RAM, VRAM, architecture flags), baseline power draw profiles, and network link topologies (\texttt{sim/topology.yaml}).
     \item \textbf{Hot-Reloading File Watchers:} Lightweight background threads poll on-disk descriptor files every $\sim 0.5\text{s}$, allowing researchers to update physical topology configurations dynamically without restarting core runtime services.
-    \item \textbf{Streaming Telemetry Overrides (\texttt{/observe}):} Live physical observations (e.g., link jitter, thermal spikes, transient packet loss) are POSTed to the \texttt{/observe} endpoint, merging override payloads directly into memory.
-    \item \textbf{Virtualization \& Estimation Deviation ($\Delta f$):} To model real-world discrepancies between virtual twin predictions and physical execution, \texttt{DTState} explicitly tracks resource estimation deviations ($\Delta f$) across all computing nodes \cite{xu2023}.
+    \item \textbf{Streaming Telemetry Overrides (\texttt{/observe}):} Live physical observations (e.g., link jitter, thermal spikes, transient packet loss) are POSTed to the \texttt{/observe} endpoint, merging override payloads directly into memory via \texttt{DTState.apply\_observation}.
+    \item \textbf{Event-Driven Ingestion via MQTT:} As an alternative to REST polling, \texttt{sim/mqtt\_bridge.py} subscribes to per-node \texttt{<node>/telemetry} topics and forwards parsed payloads to the same \texttt{/observe} path, reducing ingestion latency for high-churn deployments without requiring every sensor to speak HTTP.
 \end{itemize}
 
 \subsection{Module 2: Predictive Analytics Engine (\texttt{dt.predict.PredictiveAnalyzer})}
@@ -257,6 +258,8 @@ The planning engine routes submitted DAGs through a pluggable suite of schedulin
     \item \textbf{Dry-Run Evaluation Mode:} Allows planners to simulate placement outcomes and return predicted Job Completion Time (JCT), energy draw, and SLA violation risks without committing actual fabric resource locks.
 \end{itemize}
 
+When a node descriptor declares a GPU (\texttt{gpu.type}, \texttt{vram\_gb}, \texttt{vendor}, \texttt{model}), the containerized fabric launcher (\texttt{fabric\_docker/launch\_fabric.py}) requests a matching Docker GPU device at container start-up, so simulated placements that assume GPU availability can be exercised against a real, GPU-backed container rather than a CPU-only stand-in.
+
 \subsection{Module 4: Chaos Engineering and Background Guardrails (\texttt{sim/chaos.py})}
 To evaluate policy resilience under real-world edge unpredictability, RAP twin incorporates a dedicated Chaos Engine alongside automated background controllers \cite{esen2026}:
 
@@ -274,102 +277,81 @@ To transition from single-run testing to statistical proof, RAP twin provides a 
     \item \textbf{Statistical Performance Reporting:} Aggregates execution metrics into comprehensive CSV/JSON reports capturing mean, p95, and p99 Job Completion Times (JCT), energy efficiency, and SLA hit rates \cite{wang2022}.
     \item \textbf{Control Plane Interoperability (\texttt{dt/exporters.py}):} Serializes virtual twin states into **Azure Digital Twins Definition Language (DTDL)** and **Kubernetes Custom Resource Definitions (CRDs)** for seamless integration into external cloud and edge control planes.
     \item \textbf{Web Dashboard UI (\texttt{ui/dashboard.py}):} A Flask-based browser interface that renders real-time topology heatmaps, node health status, job execution history, and side-by-side strategy comparisons.
+    \item \textbf{Access Control on Mutating Routes:} Routes that change fabric state (add/delete node, links, jobs; chaos start/stop; overrides reset) can optionally require a constant-time-compared \texttt{X-API-Key} header, disabled by default to preserve local developer ergonomics but available for internet-facing deployments.
 \end{itemize}
     
 
 \section{Experimental Results and Performance Evaluation}
 
-To validate the performance, scalability, and resilience of the \textbf{RAP twin} Digital Twin simulation and planning sandbox, we conduct extensive numerical experiments and Monte-Carlo trial sweeps. The evaluation evaluates the runtime efficiency of pluggable scheduling policies, quantifies the impact of state estimation deviations, and measures system survivability under physical-layer chaos injections.
+To validate the performance and resilience of the \textbf{RAP twin} Digital Twin simulation and planning sandbox, we benchmark its four real scheduling strategies against the project's own fabric descriptors and job catalogue, using its own benchmarking tools (\texttt{tools/policy\_benchmark.py}, \texttt{tools/ci\_gate.py}) rather than a separate simulated testbed. The evaluation measures Job Completion Time under concurrent job load and SLA hit rate under two chaos scenarios of differing severity.
 
 \subsection{Experimental Setup and Simulation Parameters}
-The testbed environment is deployed on an Intel i7-13700K CPU with an NVIDIA RTX 4090 GPU (24GB VRAM) running Python 3.12 and a Flask-based REST API engine. The virtual fabric simulates a heterogeneous edge computing network comprising $N = 3 \text{ to } 5$ Edge Servers (ESs) connected to $M = 5 \text{ to } 35$ Edge Devices (EDs) via wireless communication channels with bandwidths of $5\text{ MHz}$ per node \cite{dai2024, tran2025}.
+All measurements below are produced by the project's own benchmarking tools (\texttt{tools/policy\_benchmark.py}, \texttt{tools/ci\_gate.py}) run against the real fabric descriptors shipped in this repository, not by a separate simulated testbed. The virtual fabric comprises 100 heterogeneous node descriptors (\texttt{nodes/*.yaml}) connected via \texttt{sim/topology.yaml}, spanning three sites (a campus lab, a student hostel, and a cloudlet/datacenter zone) linked by Ethernet (10--100\,Gbps), InfiniBand (400\,Gbps), and Wi-Fi 6E/7 (9.6--23\,Gbps) fabrics with realistic RTT, jitter, and loss figures per link class.
 
-Workload profiles consist of multi-stage Directed Acyclic Graphs (DAGs) generated across synthetic CPU-heavy and GPU-heavy resource mixes. Tasks specify required CPU cycles $C_m \in [1, 2]\text{ Hz/Byte}$, input data sizes $D_m \in [2, 3]\text{ MB}$, and strict SLA completion deadlines $T_{\max,m} \in [0.1, 1.0]\text{ s}$ \cite{tran2025, dai2024}.
+Workload profiles are drawn from an 11-job Directed Acyclic Graph (DAG) catalogue (\texttt{jobs/jobs\_10.yaml}) covering vision, NLP, analytics, audio, tabular-boosting, HPC, and mixed-accelerator stage profiles, each with explicit CPU/RAM/VRAM requirements, accelerator-format preferences, and SLA completion deadlines.
 
-We benchmark the following scheduling strategies across all experiments:
+We benchmark the four scheduling strategies that exist in this codebase's \texttt{planner/} package:
 \begin{enumerate}
     \item \textbf{Greedy Planner:} Baseline heuristic executing first-fit placement based on current available CPU/VRAM capacity.
     \item \textbf{Cheapest-Energy Planner:} Baseline heuristic optimizing node assignment to minimize total power consumption.
-    \item \textbf{DDQN-HTRCS:} Single-agent Double Deep Q-Network offloading tasks to single edge nodes \cite{xu2023}.
-    \item \textbf{RL-Markov Planner (MADRL-HTRCS):} Multi-agent Reinforcement Learning planner utilizing Actor-Critic networks and an MDP formulation with compound rewards balancing JCT latency and deadline criticality \cite{xu2023, sai2024}.
     \item \textbf{Resilient / Federated Planner:} Network-aware multi-node placement algorithm incorporating predictive health scores and redundant fallback paths.
+    \item \textbf{RL-Markov Planner (\texttt{dt/policy/mdp.py}):} A finite-horizon MDP solved by dynamic programming, with an online Q-learning component (\texttt{dt/policy/rl\_stub.py}) that adjusts node preference from accumulated plan outcomes. It is not a pretrained deep-RL agent, so no training-episode convergence curve applies to it; this distinction matters because an earlier draft of this paper described (but never measured) such a curve.
 \end{enumerate}
+An earlier draft of this benchmark also included a ``DDQN-HTRCS'' baseline; it has been removed because no such strategy exists in this codebase and no DDQN implementation was ever built or run.
 
-\subsection{Algorithm Convergence and Policy Exploration}
-We first analyze the learning stability and convergence behavior of the RL-Markov policy. The step-by-step $\epsilon$-greedy algorithm balances state-space exploration and exploitation, with the initial exploration parameter set to $\epsilon_0 = 0.9$ and a decay rate of $\beta = 10^{-4}$ \cite{dai2024}.
-
-Figure \ref{fig:convergence} illustrates the normalized accumulative reward across training episodes. All reinforcement learning policies demonstrate stable convergence after approximately 4,000 iterations \cite{xu2023}. The RL-Markov (MADRL-HTRCS) planner achieves the highest normalized reward ($\approx 0.92$) compared to single-agent DDQN ($\approx 0.68$) and heuristic baselines \cite{xu2023, dai2024}. This superiority stems from MADRL's ability to divide complex job DAGs into subtasks for parallel execution across multiple edge servers according to live channel state information and node capacity \cite{sai2024, dai2024}.
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\linewidth]{figures/reward_convergence.pdf}
-\caption{Normalized reward convergence versus training episodes across scheduling policies ($N=3, M=20, P_{\max}=200\text{ mW}$).}
-\label{fig:convergence}
-\end{figure}
-
-\subsection{Job Completion Time (JCT) and SLA Hit Rate under Scaled Load}
-Figure \ref{fig:jct_scaling} evaluates Job Completion Time (JCT) as the density of edge devices increases from $M=5$ to $M=35$. For light workloads ($M \le 10$), resource competition is minimal, resulting in similar low JCT values across all planners ($\le 0.3\text{ s}$) \cite{tran2025}. However, as device density scales to $M=35$, bandwidth competition and queueing delays increase significantly \cite{dai2024}.
+\subsection{Job Completion Time (JCT) under Concurrent Job Load}
+Figure \ref{fig:jct_scaling} sweeps the number of concurrently scheduled jobs from 2 to 10 (the full catalogue) and reports mean JCT for each strategy (\texttt{tools/policy\_benchmark.py}, no chaos). JCT stays close to flat across this range for every strategy: the 100-node fabric has far more spare capacity than an 11-job catalogue can saturate, so queueing pressure never builds up the way it would under the device-density stress test described in the earlier draft. Greedy and Cheapest-Energy track each other almost exactly ($\approx 1.02$--$1.10\text{ s}$) because, on this job mix, the cheapest-energy node is usually also the first-fit node. RL-Markov sits slightly higher ($\approx 1.10$--$1.18\text{ s}$), and Resilient highest ($\approx 1.23$--$1.35\text{ s}$), reflecting the deliberate redundancy/fallback-path overhead both policies carry.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/jct_vs_nodes.pdf}
-\caption{Job Completion Time (JCT) versus number of edge devices ($M$) for competing scheduling policies.}
+\caption{Mean Job Completion Time versus the number of concurrently scheduled jobs, for the four strategies that exist in \texttt{planner/} (\texttt{tools/policy\_benchmark.py}, no chaos).}
 \label{fig:jct_scaling}
 \end{figure}
 
-Under dense workloads ($M=35$), the RL-Markov planner reduces JCT by $58.3\%$ compared to DDQN-HTRCS and by $64.1\%$ compared to the Greedy heuristic \cite{xu2023}. Furthermore, as detailed in Table \ref{tab:slo_benchmark}, the Resilient and RL-Markov planners achieve SLA hit rates exceeding $96.5\%$, whereas baseline heuristics experience severe SLA degradation ($\le 61.2\%$) due to unhandled resource bottlenecks.
+Table \ref{tab:slo_benchmark} reports the same four strategies' Mean JCT and Energy under normal operation (job\_limit=6, no chaos) alongside p95 JCT and SLA hit rate measured separately under the \texttt{core\_link\_cut} chaos scenario at the margin-test setting \texttt{deadline\_scale=0.28} from \texttt{ci/gate.yaml} -- the same methodology and the same measured numbers used to correct the equivalent fabricated table in the project's SRS (\texttt{tools/benchmark\_srs\_table.py}). These are two different operating conditions reported side by side, not one unified run.
 
 \begin{table*}[htbp]
-\caption{Performance Metrics under Heavy Fabric Load ($M=35, N=4$)}
+\caption{Performance Metrics (job\_limit=6; Mean JCT/Energy without chaos, p95 JCT/SLA under the \texttt{core\_link\_cut} scenario at deadline\_scale=0.28)}
 \label{tab:slo_benchmark}
 \centering
 \begin{tabular}{|l|c|c|c|c|}
 \hline
 \textbf{Strategy} & \textbf{Mean JCT (s)} & \textbf{p95 JCT (s)} & \textbf{Energy (J)} & \textbf{SLA Hit Rate (\%)} \\
 \hline
-Greedy & $2.85$ & $3.42$ & $42.1$ & $58.4\%$ \\
-Cheapest-Energy & $2.12$ & $2.78$ & $\mathbf{18.4}$ & $61.2\%$ \\
-DDQN-HTRCS & $1.94$ & $2.45$ & $29.6$ & $74.5\%$ \\
-\textbf{Resilient} & $0.98$ & $1.21$ & $24.8$ & $\mathbf{98.1\%}$ \\
-\textbf{RL-Markov} & $\mathbf{0.82}$ & $\mathbf{1.05}$ & $22.3$ & $96.5\%$ \\
+Greedy & $1.05$ & $1.26$ & $13.0$ & $100.0\%$ \\
+Cheapest-Energy & $1.05$ & $1.26$ & $\mathbf{13.0}$ & $100.0\%$ \\
+Resilient & $1.27$ & $1.72$ & $13.0$ & $83.3\%$ \\
+\textbf{RL-Markov} & $1.14$ & $1.37$ & $16.2$ & $\mathbf{100.0}\%$ \\
 \hline
 \end{tabular}
 \end{table*}
 
-\subsection{Impact of Digital Twin Estimation Deviation ($\Delta f$)}
-In real-world edge networks, discrepancies exist between the computing resources estimated by the Digital Twin ($f_{m,n}$) and the physical hardware capacity ($f_{m,n} + \Delta f_{m,n}$) \cite{xu2023, dai2024}. We evaluate JCT sensitivity across estimation deviations $\Delta f \in \{-0.5, -0.2, 0, 0.2, 0.5\}\text{ GHz}$ \cite{kim2022}.
-
-When the deviation is positive ($\Delta f > 0$), actual allocated resources exceed initial predictions, reducing computing latency and JCT \cite{xu2023}. Conversely, negative estimation deviations ($\Delta f < 0$) lead to resource under-allocation, causing JCT to rise by up to $31.4\%$ \cite{dai2024}. RAP twin mitigates this penalty through continuous REST API telemetry updates (\texttt{/observe}), which dynamically re-align virtual twin states with physical measurements, reducing state synchronization drift ($\Delta f \to 0$).
-
-\subsection{Resilience Benchmarking under Physical-Layer Chaos Injection}
-To evaluate policy survival under turbulent production conditions, we execute 1,000 automated Monte-Carlo trial sweeps (\texttt{sim/montecarlo.py}) while injecting deterministic chaos scenarios via \texttt{sim/chaos.py}. Injected disruptions include $20\%$ wireless link packet drops, transient latency jitter ($+150\text{ ms}$), and thermal throttling derates on primary edge nodes.
+\subsection{Resilience under Physical-Layer Chaos Injection}
+Figure \ref{fig:chaos_survival} compares SLA hit rate across all four strategies under two real chaos scenarios defined in \texttt{sim/topology.yaml}: \texttt{wifi\_brownout} (a congested cloudlet link plus one thermal-derating workstation) and \texttt{core\_link\_cut} (a hard lab-to-datacenter link cut forcing spillover routing), both measured via \texttt{tools/ci\_gate.py}.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/chaos_survival.pdf}
-\caption{Monte-Carlo SLA compliance rate under active link outage and thermal derating chaos scenarios.}
+\caption{SLA hit rate by strategy under two chaos scenarios of differing severity (\texttt{tools/ci\_gate.py}).}
 \label{fig:chaos_survival}
 \end{figure}
 
-As shown in Figure \ref{fig:chaos_survival}, standard un-twin planners without active state telemetry experience severe job infeasibility ($>40\%$ failure rate) during link outages. In contrast, RAP twin's background \texttt{SelfHealingController} detects thermal derates and reliability drops in real time, automatically rerouting job DAGs to secondary fallback nodes. Consequently, the Resilient and RL-Markov planners maintain a $94.2\%$ SLA compliance rate under active chaos, proving that closed-loop telemetry synchronization and dry-run evaluations statistically guarantee workload resilience before physical deployment.
+The result is flatter, and less flattering to the project's own design, than the earlier draft claimed: Greedy, Cheapest-Energy, and RL-Markov all sustain $100\%$ SLA hit rate in both scenarios on this job/catalogue slice, while Resilient holds at $83.3\%$ in both. We report this honestly rather than reshaping it into a cleaner story -- Resilient's redundant-path overhead currently costs it SLA margin against the tight \texttt{deadline\_scale=0.28} test rather than buying it resilience, which Section \ref{sec:tradeoffs} discusses as a tuning target rather than a win.
 
 \section{Discussion}
 
 The experimental evaluation demonstrates that \textbf{RAP twin} effectively bridges the gap between theoretical AI scheduling models and real-world distributed fabric orchestration \cite{qi2019, lv2022}. By providing a safe, closed-loop emulation environment, the sandbox allows system architects to statistically benchmark intelligent offloading policies under severe operational uncertainty before committing to physical deployments \cite{fuller2020}.
 
 \subsection{Trade-Off Analysis: Intelligent Planners vs. Baseline Heuristics}
-Our empirical findings highlight significant trade-offs between decision latency, energy consumption, and Service Level Agreement (SLA) hit rates across competing scheduling policies:
+\label{sec:tradeoffs}
+Measured against this codebase's own benchmarking tools rather than borrowed figures, the trade-offs across competing scheduling policies are more modest than the earlier draft of this paper claimed, and in one case point the other way:
 
 \begin{itemize}
-    \item \textbf{Baseline Heuristics (Greedy \& Cheapest-Energy):} While the Greedy and Cheapest-Energy heuristics exhibit minimal decision overhead ($<5\text{ ms}$ per placement), they lack dynamic adaptability. Under scaled fabric loads ($M=35$), these static policies induce severe queueing delays and resource fragmentation, causing SLA violation rates to exceed $40\%$ \cite{dai2024}. The Cheapest-Energy planner minimizes instantaneous power draw but frequently assigns tasks to energy-efficient yet computationally constrained nodes, leading to severe Job Completion Time (JCT) penalties.
-    \item \textbf{RL-Markov Planner (MADRL-HTRCS):} The RL-Markov policy achieves optimal JCT reduction ($64.1\%$ over Greedy) and superior SLA compliance ($96.5\%$) under heavy concurrency \cite{xu2023, sai2024}. By modeling task offloading as a multi-agent Markov Decision Process (MDP) with compound latency-deadline rewards, the planner intelligently splits complex Directed Acyclic Graphs (DAGs) across heterogeneous nodes \cite{sai2024, dai2024}. However, this intelligence requires offline centralized training to handle explosive state spaces before executing online distributed inference \cite{dai2024, sai2024}.
-    \item \textbf{Resilient \& Federated Planners:} The Resilient planner achieves the highest SLA hit rate under active network chaos ($98.1\%$) by computing redundant execution paths and weighting node selection against real-time predictive risk scores \cite{dai2024}.
+    \item \textbf{Baseline Heuristics (Greedy \& Cheapest-Energy):} On the current 100-node fabric and 11-job catalogue, these heuristics are not merely cheap to run -- they also achieve the lowest Energy (13.0\,J) and a full $100\%$ SLA hit rate under both tested chaos scenarios (Table \ref{tab:slo_benchmark}, Figure \ref{fig:chaos_survival}). That is a direct consequence of scale: at this job/node ratio there is enough spare capacity that a static first-fit or cheapest-node choice rarely collides with another job's deadline. We would expect this advantage to erode as the job catalogue grows relative to the fabric, which Figure \ref{fig:jct_scaling} is already set up to measure once a larger catalogue exists.
+    \item \textbf{RL-Markov Planner:} RL-Markov matches the heuristics' $100\%$ SLA hit rate while spending more Energy (16.2\,J vs. 13.0\,J) and slightly higher Mean JCT ($1.14\text{ s}$ vs. $1.05\text{ s}$), consistent with its MDP formulation weighing failure risk and redundancy alongside raw placement cost rather than minimizing JCT or Energy in isolation.
+    \item \textbf{Resilient / Federated Planner:} This is the one place where our own benchmark data disagrees with the architecture's intent. Resilient is designed to trade decision cost for redundant fallback paths under network chaos, but at \texttt{deadline\_scale=0.28} that redundancy overhead itself consumes enough of the SLA margin to produce the \emph{lowest} measured SLA hit rate of the four strategies ($83.3\%$, both chaos scenarios), despite the highest p95 JCT ($1.72\text{ s}$). We read this as a tuning problem in the planner's weighting (\texttt{PlannerWeights} in \texttt{dt/policy/mdp.py}), not a reason to prefer heuristics generally -- but we are reporting it rather than smoothing it over, since the previous draft's $98.1\%$ figure for this same strategy was never measured.
 \end{itemize}
-
-\subsection{Mitigating State Estimation Deviations ($\Delta f$)}
-A critical finding from our evaluation is the sensitivity of edge scheduling to state estimation deviations ($\Delta f$) \cite{xu2023, dai2024}. In physical edge deployments, virtual twin models often misestimate available node computing capacity due to transient background processes or dynamic thermal throttling \cite{kim2022, tran2025}. Unhandled negative estimation deviations ($\Delta f < 0$) degrade JCT by up to $31.4\%$ due to unexpected resource starvation \cite{xu2023}.
-
-RAP twin resolves this virtualization gap through its bidirectional REST API (\texttt{/observe} endpoint). By continuously merging streaming physical observations into memory (\texttt{dt.state.DTState}), the sandbox dynamically re-aligns virtual twin states with real-world execution metrics, eliminating drift ($\Delta f \to 0$) and maintaining state parity \cite{dai2024}.
 
 \subsection{Resilience via Chaos Engineering and Self-Healing}
 Unlike traditional microservice chaos tools that focus solely on container or process termination \cite{esen2026, poltronieri2021}, RAP twin's Chaos Engine (\texttt{sim/chaos.py}) models physical-layer edge disruptions, including wireless link jitter, packet drops, and thermal derating.
@@ -380,12 +362,13 @@ When chaos experiments trigger node thermal spikes or link outages, RAP twin's a
     \item \textbf{\texttt{ResourceGuardian}:} Purges abandoned or timed-out job locks, preventing memory leaks and resource deadlocks across multi-tenant simulation runs.
 \end{enumerate}
 
-Running 1,000+ Monte-Carlo trials (\texttt{sim/montecarlo.py}) under active chaos confirms that closed-loop state synchronization allows resilient policies to maintain a $94.2\%$ SLA compliance rate, proving the necessity of physical-layer chaos benchmarking.
+Measured SLA hit rates under the two chaos scenarios we tested range from $83.3\%$ to $100\%$ depending on strategy (Section \ref{sec:tradeoffs}); the controllers above are real and run in both conditions, but the project does not yet have a benchmark that isolates their individual contribution from the planner's own placement choice.
 
 \subsection{Practical System Limitations and Future Outlook}
 While RAP twin provides a robust local emulation sandbox, several practical limitations present opportunities for future research:
 \begin{itemize}
-    \item \textbf{Simulation Scale \& Overhead:} Polling file-watcher descriptors at $\sim 0.5\text{s}$ intervals introduces CPU memory overhead when scaling to thousands of simulated edge nodes. Transitioning to event-driven message brokers (e.g., Apache Kafka or MQTT) will enhance horizontal scalability \cite{raza2025, sai2024}.
+    \item \textbf{Resilient Planner Tuning:} As Section \ref{sec:tradeoffs} reports, the Resilient strategy's redundancy overhead currently costs it SLA margin rather than buying it resilience under a tight deadline-scale test; re-weighting \texttt{PlannerWeights} and re-running \texttt{tools/ci\_gate.py} against the same scenarios is the natural next step.
+    \item \textbf{Simulation Scale:} The current 100-node fabric and 11-job catalogue leave enough spare capacity that most strategies saturate at $100\%$ SLA (Figure \ref{fig:jct_scaling}); a larger job catalogue would be needed to reproduce the kind of scaling stress test the earlier draft described. MQTT-based telemetry ingestion (\texttt{sim/mqtt\_bridge.py}) is already available for event-driven updates at that scale; what remains is deploying it against a real sensor fleet rather than the REST polling path.
     \item \textbf{Real-World Hardware Testbeds:} Current validation relies on synthetic workloads and mathematical channel models. Future work will interface the \texttt{/observe} REST endpoint directly with physical 5G/6G edge testbeds and Kubernetes control planes via native Custom Resource Definitions (CRDs).
 \end{itemize}
 
@@ -396,15 +379,16 @@ In this paper, we presented \textbf{RAP twin}, a high-fidelity digital twin and 
 
 The platform's core architectural contributions include:
 \begin{enumerate}
-    \item A **Unified Digital Twin State Engine (\texttt{dt.state.DTState})** that continuously synchronizes static hardware descriptors with streaming live telemetry via a bidirectional \texttt{/observe} REST endpoint.
-    \item A **Pluggable Multi-Strategy Planning Engine** supporting heuristics (Greedy, Cheapest-Energy) alongside advanced AI models (RL-Markov/MDP, Federated) with dry-run evaluation capabilities \cite{sai2024, fuller2020}.
-    \item A **Physical-Layer Chaos Engine (\texttt{sim/chaos.py})** and **Predictive Analytics Engine (\texttt{PredictiveAnalyzer})** backed by automated background self-healing controllers to guarantee fabric resilience under thermal derating and link outages.
+    \item A **Unified Digital Twin State Engine (\texttt{dt.state.DTState})** that continuously synchronizes static hardware descriptors with streaming live telemetry via a bidirectional \texttt{/observe} REST endpoint, with an event-driven MQTT ingestion path (\texttt{sim/mqtt\_bridge.py}) as an alternative to polling.
+    \item A **Pluggable Multi-Strategy Planning Engine** supporting heuristics (Greedy, Cheapest-Energy) alongside a Markov Decision Process planner with online Q-learning (RL-Markov) and a redundancy-aware Resilient/Federated planner, with dry-run evaluation capabilities and GPU-aware container provisioning for GPU-declared nodes.
+    \item A **Physical-Layer Chaos Engine (\texttt{sim/chaos.py})** and **Predictive Analytics Engine (\texttt{PredictiveAnalyzer})** backed by automated background self-healing controllers, and an optional API-key gate on mutating control-plane routes for non-local deployments.
     \item A **Monte-Carlo Benchmarking Suite** and open-standard exporters for serializing virtual twin states into Azure Digital Twins (DTDL) and Kubernetes CRDs.
 \end{enumerate}
 
-Empirical evaluations and Monte-Carlo trial sweeps validate that the RL-Markov planner reduces Job Completion Time by up to $64.1\%$ compared to baseline heuristics under heavy edge concurrency \cite{xu2023}. Furthermore, under active physical-layer chaos, RAP twin's closed-loop state synchronization and self-healing controllers enable resilient strategies to achieve SLA compliance rates exceeding $94.2\%$. 
+Measured against the project's own benchmarking tools (\texttt{tools/policy\_benchmark.py}, \texttt{tools/ci\_gate.py}) on the current 100-node fabric and 11-job catalogue, Greedy, Cheapest-Energy, and RL-Markov all sustain $100\%$ SLA hit rate under two tested chaos scenarios of differing severity, while the Resilient planner currently trades that margin away for redundancy it does not yet need at this scale ($83.3\%$). We report this honestly: an earlier draft of this paper cited a fabricated ``DDQN-HTRCS'' baseline, an RL training-convergence curve this codebase has no trainer to produce, and resilience/JCT figures that were never measured. Replacing them surfaced a real, if less dramatic, finding -- that the Resilient strategy's current weighting is a tuning target, not a settled win -- which is a more useful result for the next iteration of this project than the numbers it replaced.
 
-By providing an automated, scalable, and reproducible emulation sandbox, RAP twin enables organizations and researchers to statistically guarantee workload resilience and SLA compliance before deploying complex scheduling policies to expensive physical infrastructure.
+By providing an automated, scalable, and reproducible emulation sandbox, RAP twin enables organizations and researchers to evaluate workload resilience and SLA compliance before deploying complex scheduling policies to physical infrastructure.
 
+\printbibliography
 
 \end{document}
