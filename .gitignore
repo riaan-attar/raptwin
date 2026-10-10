@@ -94,8 +94,9 @@ sim/montecarlo_results.csv
 plans/
 reports/
 
-# Knowledge graph output (regenerate with `graphify update .`)
-graphify-out/
+# Knowledge graph local cache & machine-specific runtime
+graphify-out/cache/
+graphify-out/.graphify_python
 
 # Local assistant settings
 .claude/
