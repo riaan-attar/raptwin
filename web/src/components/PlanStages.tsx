@@ -8,13 +8,13 @@ function StageCard({ stage }: { stage: PlanStage }) {
     <div
       className={
         blocked
-          ? 'min-w-[170px] rounded-[10px] border border-[#5e1b1b] bg-[#2a1414] p-3'
-          : 'min-w-[170px] rounded-[10px] border border-[#2a3648] bg-chip p-3'
+          ? 'min-w-[170px] rounded-[10px] border border-[var(--color-chip-danger-border)] bg-[var(--color-chip-danger-bg)] p-3'
+          : 'min-w-[170px] rounded-[10px] border border-[var(--color-edge-2)] bg-chip p-3'
       }
     >
       <Mono className="text-[11px]">{stage.id ?? '?'}</Mono>
       <div className="mt-0.5 text-sm font-bold">{stage.node ?? '—'}</div>
-      {stage.format && <div className="mt-0.5 text-[11px] text-[#8fbef6]">{stage.format}</div>}
+      {stage.format && <div className="mt-0.5 text-[11px] text-[var(--color-chip-info-text)]">{stage.format}</div>}
       <div className="mt-1 text-[11px] text-muted-2">
         c:{fmt(stage.compute_ms, 1)} ms · x:{fmt(stage.xfer_ms, 1)} ms
       </div>
@@ -82,7 +82,7 @@ export function PlanStages({ plan }: { plan?: PlanResult }) {
         ))}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[#1f2a39] pt-2 text-[11px] text-muted-2">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--color-edge-2)] pt-2 text-[11px] text-muted-2">
         <span>
           Latency <strong className="text-ink">{fmt(plan.latency_ms, 1)} ms</strong>
         </span>

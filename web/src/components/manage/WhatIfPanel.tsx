@@ -246,7 +246,7 @@ export function WhatIfPanel({ snapshot }: { snapshot?: Snapshot }) {
                 <Td>{row.label}</Td>
                 <Td>{row.before}</Td>
                 <Td>{row.after}</Td>
-                <Td className={row.good ? 'text-[#8ff0c1]' : 'text-muted'}>{row.delta}</Td>
+                <Td className={row.good ? 'text-[var(--color-chip-success-text)]' : 'text-muted'}>{row.delta}</Td>
               </tr>
             ))}
           </TableShell>
@@ -274,8 +274,8 @@ export function WhatIfPanel({ snapshot }: { snapshot?: Snapshot }) {
                     <Td>
                       <Mono>{before.job_id}</Mono>
                     </Td>
-                    <Td className={before.met ? '' : 'text-[#ffb4b4]'}>{fmtMs(before.latency_ms)}</Td>
-                    <Td className={after?.met ? '' : 'text-[#ffb4b4]'}>{fmtMs(after?.latency_ms)}</Td>
+                    <Td className={before.met ? '' : 'text-[var(--color-chip-danger-text)]'}>{fmtMs(before.latency_ms)}</Td>
+                    <Td className={after?.met ? '' : 'text-[var(--color-chip-danger-text)]'}>{fmtMs(after?.latency_ms)}</Td>
                     <Td className="text-[11px] text-muted-2">{(after?.nodes ?? []).join(', ') || '—'}</Td>
                   </tr>
                 )

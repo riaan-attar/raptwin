@@ -1,7 +1,11 @@
 @import 'tailwindcss';
 
 /* Palette ported from the original ui/dashboard.py stylesheet so the new
-   frontend keeps the same visual identity. */
+   frontend keeps the same visual identity. Values below are the dark
+   (default) theme; :root[data-theme='light'] further down overrides every
+   --color-* token, and because Tailwind v4's utilities (bg-bg, text-ink, ...)
+   reference these as CSS variables rather than inlining them, the whole app
+   retints live without touching component classNames. */
 @theme {
   --color-bg: #0b0f14;
   --color-panel: #121822;
@@ -21,10 +25,122 @@
   --color-warn: #f1c40f;
   --color-bad: #e74c3c;
 
+  --color-header-grad: #0f1722;
+  --color-footer-grad: #080d14;
+
+  /* Semantic "chip" triplets (bg/text/border) reused across badges, buttons,
+     and selected-state pills. Added so every hardcoded dark-on-dark color
+     in the components below has a themeable home instead of baking a
+     dark-only hex into each component. */
+  --color-chip-info-bg: #13314d;
+  --color-chip-info-text: #cfe7ff;
+  --color-chip-info-border: #2c5b86;
+
+  --color-chip-success-bg: #103a28;
+  --color-chip-success-text: #8ff0c1;
+  --color-chip-success-border: #1e5d42;
+
+  --color-chip-danger-bg: #2a1414;
+  --color-chip-danger-text: #ffb4b4;
+  --color-chip-danger-border: #5e1b1b;
+
+  --color-chip-warn-bg: #3a2f10;
+  --color-chip-warn-text: #f8e38a;
+  --color-chip-warn-border: #6e5a1a;
+
+  /* Secondary (unselected) pill variant */
+  --color-chip2-bg: #172235;
+  --color-chip2-text: #b6cae4;
+  --color-chip2-border: #2d3f57;
+
+  /* Small inline stat pills (job stage summaries) */
+  --color-pill-bg: #162031;
+  --color-pill-border: #253248;
+
+  --color-input-bg: #0e1420;
+  --color-input-focus-border: #3a5575;
+  --color-row-hover: #0f1520;
+  --color-thead-bg: #111825;
+  --color-label-text: #a9c3e1;
+  --color-code-text: #bcd0e6;
+  --color-tooltip-bg: #0d1420;
+  --color-panel2-border: #1f2b3b;
+  --color-legend-dim: #2c3f57;
+  --color-legend-accent: #4c8fc9;
+
+  --color-btn-bg: #192434;
+  --color-btn-border: #2a3a4f;
+  --color-btn-border-hover: #3f5876;
+  --color-kbd-bg: #1c2736;
+  --color-kbd-border: #2b3a4f;
+
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
   --font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+}
+
+:root[data-theme='light'] {
+  --color-bg: #f4f6f9;
+  --color-panel: #ffffff;
+  --color-panel-2: #eef1f5;
+  --color-chip: #e6eaf0;
+  --color-edge: #d8dfe7;
+  --color-edge-2: #c3ccd6;
+  --color-row: #edf1f5;
+
+  --color-ink: #16212e;
+  --color-muted: #4c5d70;
+  --color-muted-2: #708294;
+
+  --color-accent: #1f73c7;
+  --color-accent-strong: #15589e;
+  --color-good: #1f9d57;
+  --color-warn: #a2730a;
+  --color-bad: #c43a2d;
+
+  --color-header-grad: #e9edf2;
+  --color-footer-grad: #e9edf2;
+
+  --color-chip-info-bg: #dceaf9;
+  --color-chip-info-text: #15497a;
+  --color-chip-info-border: #a9c7e6;
+
+  --color-chip-success-bg: #dcf3e4;
+  --color-chip-success-text: #156b3b;
+  --color-chip-success-border: #9fd8b7;
+
+  --color-chip-danger-bg: #fbdede;
+  --color-chip-danger-text: #96251c;
+  --color-chip-danger-border: #eab3b0;
+
+  --color-chip-warn-bg: #fbeecd;
+  --color-chip-warn-text: #7a5607;
+  --color-chip-warn-border: #e3c98a;
+
+  --color-chip2-bg: #eef1f5;
+  --color-chip2-text: #3c536b;
+  --color-chip2-border: #cdd6e0;
+
+  --color-pill-bg: #eef1f5;
+  --color-pill-border: #d7dfe8;
+
+  --color-input-bg: #ffffff;
+  --color-input-focus-border: #15589e;
+  --color-row-hover: #eef2f6;
+  --color-thead-bg: #eef1f5;
+  --color-label-text: #3c536b;
+  --color-code-text: #2d4760;
+  --color-tooltip-bg: #ffffff;
+  --color-panel2-border: #d7dfe8;
+  --color-legend-dim: #8694a4;
+  --color-legend-accent: #2f73c2;
+
+  --color-btn-bg: #ffffff;
+  --color-btn-border: #d8dfe7;
+  --color-btn-border-hover: #a9b7c6;
+  --color-kbd-bg: #eef1f5;
+  --color-kbd-border: #d7dfe8;
 }
 
 html,
@@ -73,7 +189,7 @@ body {
 
 /* Topology edge + node styling (driven by D3, so kept as plain CSS) */
 .link {
-  stroke: #243140;
+  stroke: var(--color-edge-2);
   stroke-width: 1.8px;
   stroke-linecap: round;
   opacity: 0.9;
@@ -100,7 +216,7 @@ body {
 }
 
 .node-core {
-  stroke: #1a2533;
+  stroke: var(--color-edge);
   stroke-width: 1.5px;
   transition:
     fill 0.6s ease,
@@ -123,7 +239,7 @@ body {
   animation: halo 2s infinite ease-in-out;
 }
 .node-label {
-  fill: #cfe7ff;
+  fill: var(--color-ink);
   font-size: 11px;
   pointer-events: none;
   text-anchor: middle;

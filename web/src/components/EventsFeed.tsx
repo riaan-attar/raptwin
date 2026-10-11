@@ -49,7 +49,7 @@ export function EventsFeed({ intervalMs }: { intervalMs: number }) {
           {rows.map((evt) => (
             <li
               key={evt.id}
-              className="flex items-start gap-2 rounded-lg border border-[#1f2b3b] bg-panel-2 px-2.5 py-1.5"
+              className="flex items-start gap-2 rounded-lg border border-[var(--color-panel2-border)] bg-panel-2 px-2.5 py-1.5"
             >
               <Badge tone={toneFor(evt.type)}>{shortType(evt.type)}</Badge>
               <div className="min-w-0 flex-1">

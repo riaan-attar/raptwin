@@ -4,8 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#0a0f18" />
+    <script>
+      // Set the theme before first paint so there's no light/dark flash.
+      try {
+        var t = localStorage.getItem('rap-twin-theme')
+        document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'
+      } catch (e) {
+        document.documentElement.dataset.theme = 'dark'
+      }
+    </script>
 
     <!-- Primary Title & Verification -->
     <title>RAP Twin — Distributed Fabric Digital Twin &amp; Autonomous Self-Healing Engine | Riaan Attar</title>

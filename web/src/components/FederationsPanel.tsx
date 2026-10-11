@@ -29,7 +29,7 @@ export function FederationsTable({ snapshot }: { snapshot?: Snapshot }) {
         }
       >
         {feds.map((f) => (
-          <tr key={f.name} className="hover:bg-[#0f1520]">
+          <tr key={f.name} className="hover:bg-[var(--color-row-hover)]">
             <Td>
               <Mono className="text-[13px]">{f.name}</Mono>
               <div className="mt-0.5 max-w-[22rem] truncate text-[11px] text-muted-2">
@@ -38,7 +38,7 @@ export function FederationsTable({ snapshot }: { snapshot?: Snapshot }) {
             </Td>
             <Td>
               <div className="flex items-center gap-2">
-                <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[#0e1420]">
+                <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[var(--color-input-bg)]">
                   <div
                     className="h-full rounded-full bg-accent-strong"
                     style={{ width: `${Math.min(100, Number(f.load_factor ?? 0) * 100)}%` }}
@@ -98,7 +98,7 @@ export function FederationLinksTable({ snapshot }: { snapshot?: Snapshot }) {
         }
       >
         {edges.map((e) => (
-          <tr key={`${e.a}~${e.b}`} className="hover:bg-[#0f1520]">
+          <tr key={`${e.a}~${e.b}`} className="hover:bg-[var(--color-row-hover)]">
             <Td>{e.a}</Td>
             <Td>{e.b}</Td>
             <Td>{e.links}</Td>

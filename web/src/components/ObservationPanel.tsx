@@ -84,7 +84,7 @@ export function ObservationPanel({ snapshot }: { snapshot?: Snapshot }) {
   }
 
   const selectCls =
-    'rounded-lg border border-edge-2 bg-[#0e1420] px-2.5 py-1.5 text-sm outline-none focus:border-[#3a5575]'
+    'rounded-lg border border-edge-2 bg-[var(--color-input-bg)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-input-focus-border)]'
 
   return (
     <Card
@@ -166,8 +166,8 @@ export function ObservationPanel({ snapshot }: { snapshot?: Snapshot }) {
         <p
           className={
             status.tone === 'ok'
-              ? 'mt-3 rounded-lg border border-[#1e5d42] bg-[#103a28] px-3 py-2 text-xs text-[#8ff0c1]'
-              : 'mt-3 rounded-lg border border-[#5e1b1b] bg-[#2a1414] px-3 py-2 text-xs text-[#ffb4b4]'
+              ? 'mt-3 rounded-lg border border-[var(--color-chip-success-border)] bg-[var(--color-chip-success-bg)] px-3 py-2 text-xs text-[var(--color-chip-success-text)]'
+              : 'mt-3 rounded-lg border border-[var(--color-chip-danger-border)] bg-[var(--color-chip-danger-bg)] px-3 py-2 text-xs text-[var(--color-chip-danger-text)]'
           }
         >
           {status.text}

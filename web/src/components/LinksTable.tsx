@@ -33,7 +33,7 @@ export function LinksTable({ snapshot }: { snapshot?: Snapshot }) {
           const e = l.effective ?? {}
           const loss = Number(e.loss_pct ?? 0)
           return (
-            <tr key={l.key} className="hover:bg-[#0f1520]">
+            <tr key={l.key} className="hover:bg-[var(--color-row-hover)]">
               <Td>
                 <Mono>{l.key}</Mono>
               </Td>

@@ -623,8 +623,8 @@ export function TopologyGraph({
         <Legend swatch={<Dot className="border-2 border-[#ffd166] bg-transparent" />}>
           selected
         </Legend>
-        <Legend swatch={<span className="text-[#2c3f57]">┄┄</span>}>same-zone grouping</Legend>
-        <Legend swatch={<span className="text-[#4c8fc9]">╍╍</span>}>zone backbone</Legend>
+        <Legend swatch={<span className="text-[var(--color-legend-dim)]">┄┄</span>}>same-zone grouping</Legend>
+        <Legend swatch={<span className="text-[var(--color-legend-accent)]">╍╍</span>}>zone backbone</Legend>
       </div>
     </Card>
   )
@@ -636,7 +636,7 @@ function HoverCard({ hover, box }: { hover: Hover; box: { width: number; height:
   const flipY = hover.y > box.height - 200
   return (
     <div
-      className="pointer-events-none absolute z-20 w-[16rem] rounded-lg border border-edge-2 bg-[#0d1420]/95 p-2.5 text-xs shadow-[0_10px_30px_rgba(0,0,0,0.55)] backdrop-blur-sm"
+      className="pointer-events-none absolute z-20 w-[16rem] rounded-lg border border-edge-2 bg-[var(--color-tooltip-bg)]/95 p-2.5 text-xs shadow-[0_10px_30px_rgba(0,0,0,0.55)] backdrop-blur-sm"
       style={{
         left: flipX ? undefined : hover.x + 14,
         right: flipX ? box.width - hover.x + 14 : undefined,
@@ -759,7 +759,7 @@ function NodeDetails({
   const net = (d?.network ?? {}) as Record<string, unknown>
 
   return (
-    <aside className="absolute right-3 top-3 z-30 flex max-h-[calc(100%-1.5rem)] w-[20rem] flex-col overflow-hidden rounded-xl border border-edge-2 bg-[#0d1420]/97 shadow-[0_18px_50px_rgba(0,0,0,0.6)] backdrop-blur">
+    <aside className="absolute right-3 top-3 z-30 flex max-h-[calc(100%-1.5rem)] w-[20rem] flex-col overflow-hidden rounded-xl border border-edge-2 bg-[var(--color-tooltip-bg)]/97 shadow-[0_18px_50px_rgba(0,0,0,0.6)] backdrop-blur">
       <header className="flex items-start justify-between gap-2 border-b border-edge px-3 py-2">
         <div className="min-w-0">
           <Mono className="text-[13px] text-ink">{node.id}</Mono>
@@ -811,7 +811,7 @@ function NodeDetails({
               {neighbours.map((l) => (
                 <li key={l.peer} className="flex items-center justify-between gap-2 text-[11px]">
                   <Mono className="truncate">{l.peer}</Mono>
-                  <span className={l.down ? 'text-[#ffb4b4]' : 'text-muted-2'}>
+                  <span className={l.down ? 'text-[var(--color-chip-danger-text)]' : 'text-muted-2'}>
                     {l.down ? 'down' : `${fmt(l.speed)} Gbps · ${fmt(l.rtt, 1)} ms`}
                   </span>
                 </li>
@@ -823,7 +823,7 @@ function NodeDetails({
         <Section title="Descriptor">
           {descriptor.isLoading && <p className="text-[11px] text-muted-2">Loading…</p>}
           {descriptor.isError && (
-            <p className="text-[11px] text-[#ffb4b4]">{(descriptor.error as Error).message}</p>
+            <p className="text-[11px] text-[var(--color-chip-danger-text)]">{(descriptor.error as Error).message}</p>
           )}
           {d && (
             <>
@@ -871,7 +871,7 @@ function NodeDetails({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-3 border-t border-edge pt-2">
-      <h4 className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[#a9c3e1]">
+      <h4 className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--color-label-text)]">
         {title}
       </h4>
       {children}

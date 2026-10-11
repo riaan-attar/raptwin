@@ -138,7 +138,7 @@ export function LinkManager({ snapshot }: { snapshot?: Snapshot }) {
           const down = Boolean(eff.down)
           const [a, b] = row.key.split('|')
           return (
-            <tr key={row.key} className="hover:bg-[#0f1520]">
+            <tr key={row.key} className="hover:bg-[var(--color-row-hover)]">
               <Td className="whitespace-nowrap">
                 <Mono className="text-[13px]">{a}</Mono>
                 <span className="mx-1.5 text-muted-2">↔</span>
@@ -371,7 +371,7 @@ function LinkEditor({
       </div>
 
       <fieldset className="mt-4">
-        <legend className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#a9c3e1]">
+        <legend className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[var(--color-label-text)]">
           Declared metrics
         </legend>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

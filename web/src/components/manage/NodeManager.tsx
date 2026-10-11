@@ -129,7 +129,7 @@ export function NodeManager({ snapshot }: { snapshot?: Snapshot }) {
           const resv = Object.keys(dyn.reservations ?? {}).length
           const down = Boolean(dyn.down)
           return (
-            <tr key={n.name} className="hover:bg-[#0f1520]">
+            <tr key={n.name} className="hover:bg-[var(--color-row-hover)]">
               <Td>
                 <Mono className="whitespace-nowrap text-[13px]">{n.name}</Mono>
               </Td>

@@ -20,6 +20,7 @@ import { RecentPlans } from './components/RecentPlans'
 import { TopologyGraph } from './components/TopologyGraph'
 import { Button } from './components/ui/primitives'
 import { cn } from './lib/format'
+import { useTheme } from './lib/theme'
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -77,6 +78,7 @@ export default function App() {
   // SSE drives refreshes; polling only covers the gap when it isn't connected.
   const intervalMs = !live ? 0 : streaming ? SAFETY_NET_MS : FALLBACK_MS
 
+  const [theme, toggleTheme] = useTheme()
   const snapshot = useSnapshot({ intervalMs })
   const plans = usePlans({ intervalMs })
 
@@ -85,7 +87,7 @@ export default function App() {
 
   return (
     <div className="min-h-full bg-bg">
-      <header className="sticky top-0 z-10 border-b border-edge bg-gradient-to-b from-[#0f1722] to-bg px-5 py-3">
+      <header className="sticky top-0 z-10 border-b border-edge bg-gradient-to-b from-header-grad to-bg px-5 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold tracking-wide">
@@ -96,7 +98,7 @@ export default function App() {
                 className={cn('inline-block size-2 rounded-full', connected ? 'bg-good' : 'bg-bad')}
               />
               {connected ? 'Connected to DT API' : 'Disconnected'}
-              <span className="text-[#33475f]">·</span>
+              <span className="text-muted-2">·</span>
               <span
                 className={cn(
                   'inline-block size-2 rounded-full',
@@ -130,6 +132,44 @@ export default function App() {
             >
               Refresh
             </Button>
+            <Button
+              variant="ghost"
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              onClick={toggleTheme}
+              className="!px-2"
+            >
+              {theme === 'dark' ? (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                </svg>
+              ) : (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+                </svg>
+              )}
+            </Button>
           </div>
         </div>
         <nav className="-mb-3 mt-3 flex gap-1 overflow-x-auto" aria-label="Sections">
@@ -141,7 +181,7 @@ export default function App() {
               className={cn(
                 'cursor-pointer whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors',
                 tab === t.id
-                  ? 'border-accent text-[#cfe7ff]'
+                  ? 'border-accent text-[var(--color-chip-info-text)]'
                   : 'border-transparent text-muted hover:text-ink',
               )}
             >
@@ -153,10 +193,10 @@ export default function App() {
 
       <main className="mx-auto flex max-w-[1600px] flex-col gap-4 p-5">
         {snapshot.isError && (
-          <div className="rounded-xl border border-[#5e1b1b] bg-[#2a1414] p-4 text-sm text-[#ffb4b4]">
+          <div className="rounded-xl border border-[var(--color-chip-danger-border)] bg-[var(--color-chip-danger-bg)] p-4 text-sm text-[var(--color-chip-danger-text)]">
             <strong className="font-semibold">Cannot reach the Digital Twin API.</strong>
-            <p className="mt-1 text-[#e5a3a3]">{(snapshot.error as Error)?.message}</p>
-            <p className="mt-2 text-xs text-[#d09595]">
+            <p className="mt-1 text-[var(--color-chip-danger-text)]">{(snapshot.error as Error)?.message}</p>
+            <p className="mt-2 text-xs text-[var(--color-chip-danger-text)]">
               Start it with{' '}
               <code className="rounded bg-black/30 px-1 py-0.5 font-mono">
                 python -m dt.api --host 127.0.0.1 --port 8080
@@ -221,7 +261,7 @@ export default function App() {
         {tab === 'reservations' && <ReservationsPanel snapshot={snapshot.data} />}
       </main>
 
-      <footer className="mt-12 border-t border-edge bg-gradient-to-t from-[#080d14] to-bg px-6 py-8 text-xs text-muted-2">
+      <footer className="mt-12 border-t border-edge bg-gradient-to-t from-[var(--color-footer-grad)] to-bg px-6 py-8 text-xs text-muted-2">
         <div className="mx-auto flex max-w-[1600px] flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="flex items-center gap-2">

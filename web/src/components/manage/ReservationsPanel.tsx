@@ -86,7 +86,7 @@ export function ReservationsPanel({ snapshot }: { snapshot?: Snapshot }) {
         }
       >
         {rows.map((r) => (
-          <tr key={`${r.node}:${r.id}`} className="hover:bg-[#0f1520]">
+          <tr key={`${r.node}:${r.id}`} className="hover:bg-[var(--color-row-hover)]">
             <Td className="whitespace-nowrap">
               <Mono>{r.id}</Mono>
             </Td>

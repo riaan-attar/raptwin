@@ -123,17 +123,17 @@ export function BlastRadiusPanel() {
 
           {report.minimal_breaking_sets.length > 0 && (
             <div>
-              <h3 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#a9c3e1]">
+              <h3 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--color-label-text)]">
                 Minimal breaking sets
               </h3>
               <ul className="flex flex-col gap-1.5">
                 {report.minimal_breaking_sets.map((entry, i) => (
                   <li
                     key={i}
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-[#5e1b1b] bg-[#2a1414]/60 px-2.5 py-1.5 text-xs"
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-chip-danger-border)] bg-[var(--color-chip-danger-bg)]/60 px-2.5 py-1.5 text-xs"
                   >
                     <Badge tone="bad">{entry.size}</Badge>
-                    <span className="text-[#ffd0d0]">
+                    <span className="text-[var(--color-chip-danger-text)]">
                       {entry.faults.map((f) => f.label).join('  +  ')}
                     </span>
                     <span className="ml-auto text-muted-2">
@@ -164,7 +164,7 @@ export function BlastRadiusPanel() {
 
           {report.worst_single_faults.length > 0 && (
             <div>
-              <h3 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#a9c3e1]">
+              <h3 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--color-label-text)]">
                 Worst survivable single faults
               </h3>
               <ul className="flex flex-col gap-1">

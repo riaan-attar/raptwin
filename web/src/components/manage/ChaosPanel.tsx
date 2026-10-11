@@ -120,7 +120,7 @@ export function ChaosPanel() {
             />
           </div>
           {status.log.length > 0 && (
-            <ol className="mt-3 max-h-56 overflow-auto rounded-lg border border-[#1f2b3b] bg-panel-2 p-2 font-mono text-[11px] text-[#bcd0e6]">
+            <ol className="mt-3 max-h-56 overflow-auto rounded-lg border border-[var(--color-panel2-border)] bg-panel-2 p-2 font-mono text-[11px] text-[var(--color-code-text)]">
               {[...status.log].reverse().map((entry, i) => (
                 <li key={`${entry.ts}-${i}`} className="py-0.5">
                   <span className="text-muted-2">{fmtTime(entry.ts)}</span> {entry.msg}
@@ -197,7 +197,7 @@ export function MaintenancePanel({ snapshot }: { snapshot?: Snapshot }) {
         <a
           href="/api/bundle"
           download
-          className="cursor-pointer rounded-lg border border-[#2a3a4f] bg-[#192434] px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:border-[#3f5876]"
+          className="cursor-pointer rounded-lg border border-[var(--color-btn-border)] bg-[var(--color-btn-bg)] px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:border-[var(--color-btn-border-hover)]"
         >
           Download incident bundle
         </a>

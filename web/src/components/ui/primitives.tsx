@@ -29,7 +29,7 @@ export function Card({
         <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             {title && (
-              <h2 className="text-[15px] font-semibold tracking-wide text-[#cfe7ff]">{title}</h2>
+              <h2 className="text-[15px] font-semibold tracking-wide text-[var(--color-chip-info-text)]">{title}</h2>
             )}
             {subtitle && <p className="mt-0.5 text-xs text-muted-2">{subtitle}</p>}
           </div>
@@ -44,10 +44,10 @@ export function Card({
 type ButtonVariant = 'default' | 'primary' | 'good' | 'bad' | 'ghost'
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
-  default: 'border-[#2a3a4f] bg-[#192434] text-ink hover:border-[#3f5876]',
-  primary: 'border-[#2c5b86] bg-[#13314d] text-[#cfe7ff] hover:border-accent',
-  good: 'border-[#1b5e40] bg-[#103a28] text-[#bbffde] hover:border-good',
-  bad: 'border-[#5b1a1a] bg-[#3a1010] text-[#ffbbbb] hover:border-bad',
+  default: 'border-[var(--color-btn-border)] bg-[var(--color-btn-bg)] text-ink hover:border-[var(--color-btn-border-hover)]',
+  primary: 'border-[var(--color-chip-info-border)] bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)] hover:border-accent',
+  good: 'border-[var(--color-chip-success-border)] bg-[var(--color-chip-success-bg)] text-[var(--color-chip-success-text)] hover:border-good',
+  bad: 'border-[var(--color-chip-danger-border)] bg-[var(--color-chip-danger-bg)] text-[var(--color-chip-danger-text)] hover:border-bad',
   ghost: 'border-transparent bg-transparent text-muted hover:text-ink',
 }
 
@@ -72,10 +72,10 @@ export function Button({
 type BadgeTone = 'good' | 'warn' | 'bad' | 'neutral' | 'info'
 
 const BADGE_TONES: Record<BadgeTone, string> = {
-  good: 'border-[#1e5d42] bg-[#103a28] text-[#8ff0c1]',
-  warn: 'border-[#6e5a1a] bg-[#3a2f10] text-[#f8e38a]',
-  bad: 'border-[#5e1b1b] bg-[#3a1010] text-[#ffb4b4]',
-  info: 'border-[#2c5b86] bg-[#13314d] text-[#cfe7ff]',
+  good: 'border-[var(--color-chip-success-border)] bg-[var(--color-chip-success-bg)] text-[var(--color-chip-success-text)]',
+  warn: 'border-[var(--color-chip-warn-border)] bg-[var(--color-chip-warn-bg)] text-[var(--color-chip-warn-text)]',
+  bad: 'border-[var(--color-chip-danger-border)] bg-[var(--color-chip-danger-bg)] text-[var(--color-chip-danger-text)]',
+  info: 'border-[var(--color-chip-info-border)] bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)]',
   neutral: 'border-edge-2 bg-chip text-muted',
 }
 
@@ -94,7 +94,7 @@ export function Badge({ tone = 'neutral', children }: { tone?: BadgeTone; childr
 
 export function Tag({ children }: { children: ReactNode }) {
   return (
-    <span className="m-0.5 inline-block rounded-[10px] border border-[#2b3a4f] bg-[#1c2736] px-2 py-0.5 text-[11px] text-[#c7d8ec]">
+    <span className="m-0.5 inline-block rounded-[10px] border border-[var(--color-kbd-border)] bg-[var(--color-kbd-bg)] px-2 py-0.5 text-[11px] text-[var(--color-code-text)]">
       {children}
     </span>
   )
@@ -110,7 +110,7 @@ export function Kpi({ label, value }: { label: string; value: ReactNode }) {
 }
 
 export function Mono({ children, className }: { children: ReactNode; className?: string }) {
-  return <span className={cn('font-mono text-xs text-[#bcd0e6]', className)}>{children}</span>
+  return <span className={cn('font-mono text-xs text-[var(--color-code-text)]', className)}>{children}</span>
 }
 
 /** Scrollable table shell with sticky headers. */
@@ -128,7 +128,7 @@ export function TableShell({
   return (
     <div className="overflow-auto" style={{ maxHeight }}>
       <table className="w-full border-collapse">
-        <thead className="sticky top-0 z-[1] bg-[#111825]">
+        <thead className="sticky top-0 z-[1] bg-[var(--color-thead-bg)]">
           <tr>{head}</tr>
         </thead>
         <tbody>{empty ?? children}</tbody>
@@ -141,7 +141,7 @@ export function Th({ children, className }: { children?: ReactNode; className?: 
   return (
     <th
       className={cn(
-        'border-b border-row px-2.5 py-2 text-left text-xs font-bold text-[#a9c3e1]',
+        'border-b border-row px-2.5 py-2 text-left text-xs font-bold text-[var(--color-label-text)]',
         className,
       )}
     >
@@ -173,7 +173,7 @@ export function EmptyRow({ colSpan, children }: { colSpan: number; children: Rea
 // ---------------------------------------------------------------------------
 
 export const inputCls =
-  'w-full rounded-lg border border-edge-2 bg-[#0e1420] px-2.5 py-1.5 text-sm text-ink outline-none focus:border-[#3a5575] disabled:opacity-60'
+  'w-full rounded-lg border border-edge-2 bg-[var(--color-input-bg)] px-2.5 py-1.5 text-sm text-ink outline-none focus:border-[var(--color-input-focus-border)] disabled:opacity-60'
 
 export function Field({
   label,
@@ -205,9 +205,9 @@ export function Notice({
   onDismiss?: () => void
 }) {
   const tones = {
-    ok: 'border-[#1e5d42] bg-[#103a28] text-[#8ff0c1]',
-    err: 'border-[#5e1b1b] bg-[#2a1414] text-[#ffb4b4]',
-    info: 'border-[#2c5b86] bg-[#13314d] text-[#cfe7ff]',
+    ok: 'border-[var(--color-chip-success-border)] bg-[var(--color-chip-success-bg)] text-[var(--color-chip-success-text)]',
+    err: 'border-[var(--color-chip-danger-border)] bg-[var(--color-chip-danger-bg)] text-[var(--color-chip-danger-text)]',
+    info: 'border-[var(--color-chip-info-border)] bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)]',
   }
   return (
     <div
@@ -268,7 +268,7 @@ export function Modal({
       >
         <header className="flex items-start justify-between gap-3 border-b border-edge px-5 py-3">
           <div>
-            <h2 className="text-[15px] font-semibold tracking-wide text-[#cfe7ff]">{title}</h2>
+            <h2 className="text-[15px] font-semibold tracking-wide text-[var(--color-chip-info-text)]">{title}</h2>
             {subtitle && <p className="mt-0.5 text-xs text-muted-2">{subtitle}</p>}
           </div>
           <button

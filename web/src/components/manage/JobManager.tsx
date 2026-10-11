@@ -71,7 +71,7 @@ export function JobManager() {
             aria-label="Search jobs"
             className={inputCls}
           />
-          <div className="max-h-[560px] overflow-auto rounded-[10px] border border-[#1f2b3b] bg-panel-2 p-2">
+          <div className="max-h-[560px] overflow-auto rounded-[10px] border border-[var(--color-panel2-border)] bg-panel-2 p-2">
             {jobs.isLoading && <p className="p-2 text-xs text-muted-2">Loading job library…</p>}
             {!jobs.isLoading && filtered.length === 0 && (
               <p className="p-2 text-xs text-muted-2">No jobs found.</p>
@@ -88,8 +88,8 @@ export function JobManager() {
                   className={cn(
                     'mb-1.5 w-full cursor-pointer rounded-lg border px-2.5 py-1.5 text-left text-sm transition-colors',
                     active
-                      ? 'border-[#2c5b86] bg-[#13314d] text-[#cfe7ff]'
-                      : 'border-[#2d3f57] bg-[#172235] text-[#b6cae4] hover:border-[#3f5876]',
+                      ? 'border-[var(--color-chip-info-border)] bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)]'
+                      : 'border-[var(--color-chip2-border)] bg-[var(--color-chip2-bg)] text-[var(--color-chip2-text)] hover:border-[var(--color-btn-border-hover)]',
                   )}
                 >
                   <div className="truncate font-semibold">{entry.id}</div>
@@ -278,7 +278,7 @@ function JobEditor({
               }}
               className={cn(
                 'cursor-pointer rounded-md px-3 py-1 text-xs font-semibold',
-                mode === m ? 'bg-[#13314d] text-[#cfe7ff]' : 'text-muted hover:text-ink',
+                mode === m ? 'bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)]' : 'text-muted hover:text-ink',
               )}
             >
               {m === 'form' ? 'Form' : 'JSON'}
@@ -403,9 +403,9 @@ function StageRow({
   const formats = new Set(stage.allowed_formats ?? [])
 
   return (
-    <div className="rounded-[10px] border border-[#1f2b3b] bg-panel-2 p-3">
+    <div className="rounded-[10px] border border-[var(--color-panel2-border)] bg-panel-2 p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-[#a9c3e1]">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-label-text)]">
           Stage {index + 1}
         </span>
         <div className="flex gap-1">
@@ -421,7 +421,7 @@ function StageRow({
           >
             ↓
           </Button>
-          <Button variant="ghost" className="px-2 py-0.5 text-xs text-[#ffb4b4]" onClick={onRemove} aria-label="Remove stage">
+          <Button variant="ghost" className="px-2 py-0.5 text-xs text-[var(--color-chip-danger-text)]" onClick={onRemove} aria-label="Remove stage">
             Remove
           </Button>
         </div>
@@ -457,7 +457,7 @@ function StageRow({
             key={f}
             className={cn(
               'flex cursor-pointer items-center gap-1 rounded-md border px-2 py-0.5 text-[11px]',
-              formats.has(f) ? 'border-[#2c5b86] bg-[#13314d] text-[#cfe7ff]' : 'border-edge-2 text-muted',
+              formats.has(f) ? 'border-[var(--color-chip-info-border)] bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)]' : 'border-edge-2 text-muted',
             )}
           >
             <input

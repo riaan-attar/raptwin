@@ -38,12 +38,12 @@ export function NodesTable({ snapshot }: { snapshot?: Snapshot }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter by name / arch / label…"
-            className="w-56 rounded-lg border border-edge-2 bg-[#0e1420] px-2.5 py-1.5 text-sm outline-none focus:border-[#3a5575]"
+            className="w-56 rounded-lg border border-edge-2 bg-[var(--color-input-bg)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-input-focus-border)]"
           />
           <select
             value={arch}
             onChange={(e) => setArch(e.target.value)}
-            className="rounded-lg border border-edge-2 bg-[#0e1420] px-2.5 py-1.5 text-sm outline-none focus:border-[#3a5575]"
+            className="rounded-lg border border-edge-2 bg-[var(--color-input-bg)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-input-focus-border)]"
           >
             <option value="">Arch: All</option>
             {arches.map((a) => (
@@ -81,7 +81,7 @@ export function NodesTable({ snapshot }: { snapshot?: Snapshot }) {
           const fed = fedMap[n.name] ?? n.labels?.federation ?? n.labels?.zone
           const derate = Number(dyn.thermal_derate ?? 0)
           return (
-            <tr key={n.name} className="hover:bg-[#0f1520]">
+            <tr key={n.name} className="hover:bg-[var(--color-row-hover)]">
               <Td>
                 <Mono className="text-[13px]">{n.name}</Mono>
                 <div className="text-xs text-muted-2">{n.class}</div>

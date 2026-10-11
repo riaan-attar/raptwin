@@ -54,8 +54,8 @@ export function RecentPlans({
             onClick={() => onSelect(idx)}
             className={
               idx === selectedIndex
-                ? 'cursor-pointer bg-[#13314d]/40'
-                : 'cursor-pointer hover:bg-[#0f1520]'
+                ? 'cursor-pointer bg-[var(--color-chip-info-bg)]/40'
+                : 'cursor-pointer hover:bg-[var(--color-row-hover)]'
             }
           >
             <Td>

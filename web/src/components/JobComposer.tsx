@@ -77,7 +77,7 @@ export function JobComposer() {
           <select
             value={strategy}
             onChange={(e) => setStrategy(e.target.value as Strategy)}
-            className="rounded-lg border border-edge-2 bg-[#0e1420] px-2.5 py-1.5 text-sm outline-none focus:border-[#3a5575]"
+            className="rounded-lg border border-edge-2 bg-[var(--color-input-bg)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-input-focus-border)]"
           >
             {STRATEGIES.map((s) => (
               <option key={s.value} value={s.value}>
@@ -99,7 +99,7 @@ export function JobComposer() {
       }
     >
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(180px,240px)_1fr]">
-        <div className="max-h-64 overflow-auto rounded-[10px] border border-[#1f2b3b] bg-panel-2 p-2">
+        <div className="max-h-64 overflow-auto rounded-[10px] border border-[var(--color-panel2-border)] bg-panel-2 p-2">
           {jobs.isLoading && <p className="p-2 text-xs text-muted-2">Loading job library…</p>}
           {!jobs.isLoading && catalog.length === 0 && (
             <p className="p-2 text-xs text-muted-2">
@@ -116,8 +116,8 @@ export function JobComposer() {
               className={cn(
                 'mb-1.5 w-full cursor-pointer rounded-lg border px-2.5 py-1.5 text-left text-sm transition-colors',
                 idx === selected
-                  ? 'border-[#2c5b86] bg-[#13314d] text-[#cfe7ff]'
-                  : 'border-[#2d3f57] bg-[#172235] text-[#b6cae4] hover:border-[#3f5876]',
+                  ? 'border-[var(--color-chip-info-border)] bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)]'
+                  : 'border-[var(--color-chip2-border)] bg-[var(--color-chip2-bg)] text-[var(--color-chip2-text)] hover:border-[var(--color-btn-border-hover)]',
               )}
             >
               <div className="truncate font-medium">{item.id}</div>
@@ -129,16 +129,16 @@ export function JobComposer() {
         <div className="flex flex-col gap-2">
           {entry && (
             <div className="flex flex-wrap gap-1.5 text-[11px] text-muted-2">
-              <span className="rounded-lg border border-[#253248] bg-[#162031] px-2 py-1">
+              <span className="rounded-lg border border-[var(--color-pill-border)] bg-[var(--color-pill-bg)] px-2 py-1">
                 {entry.job.stages?.length ?? 0} stages
               </span>
               {entry.job.deadline_ms != null && (
-                <span className="rounded-lg border border-[#253248] bg-[#162031] px-2 py-1">
+                <span className="rounded-lg border border-[var(--color-pill-border)] bg-[var(--color-pill-bg)] px-2 py-1">
                   deadline {entry.job.deadline_ms} ms
                 </span>
               )}
               {entry.job.redundancy != null && (
-                <span className="rounded-lg border border-[#253248] bg-[#162031] px-2 py-1">
+                <span className="rounded-lg border border-[var(--color-pill-border)] bg-[var(--color-pill-bg)] px-2 py-1">
                   redundancy {entry.job.redundancy}
                 </span>
               )}
@@ -151,7 +151,7 @@ export function JobComposer() {
             rows={12}
             spellCheck={false}
             placeholder="Paste or edit the job JSON here…"
-            className="w-full rounded-lg border border-edge-2 bg-[#0e1420] p-3 font-mono text-xs leading-relaxed text-[#bcd0e6] outline-none focus:border-[#3a5575]"
+            className="w-full rounded-lg border border-edge-2 bg-[var(--color-input-bg)] p-3 font-mono text-xs leading-relaxed text-[var(--color-code-text)] outline-none focus:border-[var(--color-input-focus-border)]"
           />
 
           <div className="flex flex-wrap gap-2">
@@ -194,12 +194,12 @@ export function JobComposer() {
           </div>
 
           {error && (
-            <p className="rounded-lg border border-[#5e1b1b] bg-[#2a1414] px-3 py-2 text-xs text-[#ffb4b4]">
+            <p className="rounded-lg border border-[var(--color-chip-danger-border)] bg-[var(--color-chip-danger-bg)] px-3 py-2 text-xs text-[var(--color-chip-danger-text)]">
               {error}
             </p>
           )}
           {notice && !error && (
-            <p className="rounded-lg border border-[#1e5d42] bg-[#103a28] px-3 py-2 text-xs text-[#8ff0c1]">
+            <p className="rounded-lg border border-[var(--color-chip-success-border)] bg-[var(--color-chip-success-bg)] px-3 py-2 text-xs text-[var(--color-chip-success-text)]">
               {notice}
             </p>
           )}

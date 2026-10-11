@@ -141,7 +141,7 @@ export function NodeEditor({
             onClick={() => switchMode(m)}
             className={cn(
               'cursor-pointer rounded-md px-3 py-1 text-xs font-semibold',
-              mode === m ? 'bg-[#13314d] text-[#cfe7ff]' : 'text-muted hover:text-ink',
+              mode === m ? 'bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)]' : 'text-muted hover:text-ink',
             )}
           >
             {m === 'form' ? 'Form' : 'Full descriptor (JSON)'}
@@ -267,7 +267,7 @@ export function NodeEditor({
                     className={cn(
                       'flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs',
                       formats.has(f)
-                        ? 'border-[#2c5b86] bg-[#13314d] text-[#cfe7ff]'
+                        ? 'border-[var(--color-chip-info-border)] bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)]'
                         : 'border-edge-2 text-muted',
                     )}
                   >
@@ -319,7 +319,7 @@ export function NodeEditor({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <fieldset className="min-w-0">
-      <legend className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#a9c3e1]">
+      <legend className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[var(--color-label-text)]">
         {title}
       </legend>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
