@@ -18,6 +18,12 @@ function StageCard({ stage }: { stage: PlanStage }) {
       <div className="mt-1 text-[11px] text-muted-2">
         c:{fmt(stage.compute_ms, 1)} ms · x:{fmt(stage.xfer_ms, 1)} ms
       </div>
+      {stage.cpu_cores_requested != null && (
+        <div className="mt-0.5 text-[11px] text-muted-2">
+          cpu: {fmt(stage.cpu_cores_requested, 1)}
+          {stage.cpu_cores_available != null && <> / {fmt(stage.cpu_cores_available, 1)} cores</>}
+        </div>
+      )}
       {(stage.reliability != null || stage.availability_window_sec != null) && (
         <div className="mt-0.5 text-[11px] text-muted-2">
           {stage.reliability != null && <>rel {fmt(stage.reliability)} </>}

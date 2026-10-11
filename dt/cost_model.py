@@ -445,14 +445,15 @@ class CostModel:
         for st in stages:
             sid = st.get("id")
             node_name = assignments.get(sid)
+            cpu_cores_requested = safe_float((st.get("resources") or {}).get("cpu_cores"), 1.0)
             if node_name is None:
                 # infeasible
-                results.append({"id": sid, "node": None, "compute_ms": float("inf"), "xfer_ms": 0.0, "energy_kj": 0.0, "risk": 1.0})
+                results.append({"id": sid, "node": None, "compute_ms": float("inf"), "xfer_ms": 0.0, "energy_kj": 0.0, "risk": 1.0, "cpu_cores_requested": round(cpu_cores_requested, 3)})
                 total_ms = float("inf")
                 continue
             node = self.state.get_node(node_name)
             if not node:
-                results.append({"id": sid, "node": node_name, "compute_ms": float("inf"), "xfer_ms": 0.0, "energy_kj": 0.0, "risk": 1.0})
+                results.append({"id": sid, "node": node_name, "compute_ms": float("inf"), "xfer_ms": 0.0, "energy_kj": 0.0, "risk": 1.0, "cpu_cores_requested": round(cpu_cores_requested, 3)})
                 total_ms = float("inf")
                 continue
 
@@ -471,6 +472,7 @@ class CostModel:
             risk = self.risk_score(st, node, link_loss_pct=link_loss)
             reliability = self._current_reliability(node)
             availability = self._current_availability(node)
+            cpu_cores_available = safe_float((node.get("caps") or {}).get("max_cpu_cores"), 1.0)
 
             results.append({
                 "id": sid,
@@ -481,6 +483,8 @@ class CostModel:
                 "risk": round(risk, 4),
                 "reliability": None if reliability is None else round(reliability, 4),
                 "availability_window_sec": None if availability is None else round(availability, 3),
+                "cpu_cores_requested": round(cpu_cores_requested, 3),
+                "cpu_cores_available": round(cpu_cores_available, 3),
             })
 
             if isfinite(comp_ms) and isfinite(xfer_ms):

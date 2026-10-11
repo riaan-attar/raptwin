@@ -193,6 +193,13 @@ export function JobComposer() {
             </Button>
           </div>
 
+          {dryRun && (
+            <p className="text-[11px] text-muted-2">
+              Dry run previews a plan without reserving capacity — CPU usage on Overview and
+              Topology won't change until you uncheck "Dry run" above and submit.
+            </p>
+          )}
+
           {error && (
             <p className="rounded-lg border border-[var(--color-chip-danger-border)] bg-[var(--color-chip-danger-bg)] px-3 py-2 text-xs text-[var(--color-chip-danger-text)]">
               {error}

@@ -52,6 +52,7 @@ def test_plan_returns_rich_stage_metrics(client):
     assert "score" in first_stage
     assert "reservation_id" in first_stage
     assert "compute_ms" in first_stage and first_stage["compute_ms"] >= 0
+    assert first_stage["cpu_cores_requested"] == 1
 
 
 def test_plan_batch_reuses_plan_logic(client):

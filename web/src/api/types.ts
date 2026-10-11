@@ -181,6 +181,9 @@ export interface PlanStage {
   cost?: number | null
   cost_breakdown?: CostBreakdown
   co2_g?: number | null
+  /** Requested/available CPU cores for this stage (dt/cost_model.py job_cost()). */
+  cpu_cores_requested?: number
+  cpu_cores_available?: number
 }
 
 export interface CostBreakdown {
