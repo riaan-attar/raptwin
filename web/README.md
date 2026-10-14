@@ -107,6 +107,8 @@ Both `dev` and `preview` proxy `/api` to `$FABRIC_DT_REMOTE`
 | `src/lib/topologyModel.ts` | Pure graph builder: nodes, zone rings, backbone edges |
 | `src/lib/format.ts` | Number/time formatters |
 | `src/components/` | One file per dashboard panel |
+| `src/components/Docs.tsx` | Docs tab shell: grouped page nav, search, deep links, outline, prev/next |
+| `src/components/docs/` | Docs content: `pages/` (start, concepts, guides, reference), `diagrams.tsx`, shared `ui.tsx` |
 | `scripts/shoot.mjs` | Headless render + console-error check |
 | `scripts/e2e.mjs` | Drives the real UI (submits a job, asserts the result) |
 
@@ -120,6 +122,14 @@ Both `dev` and `preview` proxy `/api` to `$FABRIC_DT_REMOTE`
 - **Nodes / Links / Federations / Federation Links** — live inventory
 - **Inject Observation** — structured `/observe` apply + revert
 - **Twin Events** — CloudEvent feed from `dt.state`
+- **Docs** (`#docs` tab) — 17-page documentation site: introduction, quickstart,
+  architecture, state, nodes, topology, jobs, dashboard guide, planning, chaos,
+  analysis tools, telemetry, API reference, configuration, measured results,
+  deployment and troubleshooting. Pages are addressable as `#docs/<page>`
+  (for example `#docs/api`). It is static and needs no API. Its tables (routes,
+  environment variables, results) are hand-maintained, so update
+  `src/components/docs/pages/` when `dt/api.py` routes, env vars or benchmark
+  numbers change
 
 ## Topology model
 

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePlans, useSnapshot } from './api/hooks'
 import { useEventStream } from './api/useEventStream'
+import { Docs } from './components/Docs'
 import { EventsFeed } from './components/EventsFeed'
 import { FederationLinksTable, FederationsTable } from './components/FederationsPanel'
 import { JobComposer } from './components/JobComposer'
@@ -30,11 +31,13 @@ const TABS = [
   { id: 'chaos', label: 'Chaos & Faults' },
   { id: 'whatif', label: 'What-if' },
   { id: 'reservations', label: 'Reservations' },
+  { id: 'docs', label: 'Docs' },
 ] as const
 type TabId = (typeof TABS)[number]['id']
 
 function tabFromHash(): TabId {
-  const id = window.location.hash.replace(/^#\/?/, '')
+  // "#docs/api" is tab "docs", page "api": only the first segment picks the tab.
+  const id = window.location.hash.replace(/^#\/?/, '').split('/')[0]
   return TABS.some((t) => t.id === id) ? (id as TabId) : 'dashboard'
 }
 
@@ -47,6 +50,47 @@ function useHashTab(): [TabId, (tab: TabId) => void] {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
   return [tab, (next) => (window.location.hash = next === 'dashboard' ? '' : next)]
+}
+
+/** Tracks horizontal scroll position of the tab nav so edge-fade hints and
+ *  arrow buttons only show when there's actually more to scroll to, and
+ *  keeps the active tab scrolled into view (e.g. after a reload lands
+ *  on a hash further right than the viewport shows). */
+function useNavScroll(activeTab: TabId) {
+  const scrollerRef = useRef<HTMLElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const update = () => {
+    const el = scrollerRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 2)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2)
+  }
+
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!el) return
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', update)
+      ro.disconnect()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    const el = scrollerRef.current
+    const active = el?.querySelector<HTMLElement>('[aria-current="page"]')
+    active?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+  }, [activeTab])
+
+  const scrollBy = (dx: number) => scrollerRef.current?.scrollBy({ left: dx, behavior: 'smooth' })
+
+  return { scrollerRef, canScrollLeft, canScrollRight, scrollBy }
 }
 
 /** Fallback poll used only while the SSE stream is down. */
@@ -62,12 +106,35 @@ const TAB_TITLES: Record<TabId, string> = {
   chaos: 'Chaos Testing & Autonomous Self-Healing — RAP Twin | Riaan Attar',
   whatif: 'What-If Topology & Capacity Analysis — RAP Twin | Riaan Attar',
   reservations: 'Fabric Resource Reservations — RAP Twin | Riaan Attar',
+  docs: 'Documentation: Architecture, Dashboard Guide and API Reference — RAP Twin | Riaan Attar',
 }
 
 export default function App() {
   const [live, setLive] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState(0)
   const [tab, setTab] = useHashTab()
+  const { scrollerRef, canScrollLeft, canScrollRight, scrollBy } = useNavScroll(tab)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Close the mobile menu on outside click, Escape, or navigating away.
+  useEffect(() => {
+    if (!menuOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
+
+  useEffect(() => setMenuOpen(false), [tab])
 
   useEffect(() => {
     document.title = TAB_TITLES[tab] ?? 'RAP Twin — Distributed Fabric Digital Twin | Riaan Attar'
@@ -172,23 +239,120 @@ export default function App() {
             </Button>
           </div>
         </div>
-        <nav className="-mb-3 mt-3 flex gap-1 overflow-x-auto" aria-label="Sections">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              aria-current={tab === t.id ? 'page' : undefined}
-              className={cn(
-                'cursor-pointer whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors',
-                tab === t.id
-                  ? 'border-accent text-[var(--color-chip-info-text)]'
-                  : 'border-transparent text-muted hover:text-ink',
-              )}
+        {/* Phone: a proper menu button + dropdown instead of a scrolling tab strip. */}
+        <div ref={menuRef} className="relative mt-3 sm:hidden">
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-expanded={menuOpen}
+            aria-haspopup="true"
+            aria-label="Open section menu"
+            className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-edge-2 bg-chip px-3 py-2 text-sm font-semibold text-ink"
+          >
+            <span className="flex items-center gap-2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              {TABS.find((t) => t.id === tab)?.label}
+            </span>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={cn('transition-transform', menuOpen && 'rotate-180')}
+              aria-hidden="true"
             >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+
+          {menuOpen && (
+            <nav
+              aria-label="Sections"
+              className="absolute inset-x-0 top-full z-20 mt-1 flex flex-col overflow-hidden rounded-lg border border-edge-2 bg-panel shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
+            >
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  aria-current={tab === t.id ? 'page' : undefined}
+                  className={cn(
+                    'cursor-pointer border-l-2 px-4 py-2.5 text-left text-sm font-semibold transition-colors',
+                    tab === t.id
+                      ? 'border-accent bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)]'
+                      : 'border-transparent text-muted hover:bg-row hover:text-ink',
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+          )}
+        </div>
+
+        {/* Tablet and up: the horizontal tab strip, with edge-fade + arrow
+            affordances for when even this width can't fit every tab. */}
+        <div className="relative -mb-3 mt-3 hidden sm:block">
+          <nav
+            ref={scrollerRef}
+            className="flex gap-1 overflow-x-auto scroll-smooth"
+            aria-label="Sections"
+          >
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                aria-current={tab === t.id ? 'page' : undefined}
+                className={cn(
+                  'shrink-0 cursor-pointer whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors',
+                  tab === t.id
+                    ? 'border-accent text-[var(--color-chip-info-text)]'
+                    : 'border-transparent text-muted hover:text-ink',
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+
+          {canScrollLeft && (
+            <>
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-bg to-transparent" />
+              <button
+                aria-label="Scroll tabs left"
+                onClick={() => scrollBy(-120)}
+                className="absolute inset-y-0 left-0 flex cursor-pointer items-center px-1 text-muted hover:text-ink"
+              >
+                ‹
+              </button>
+            </>
+          )}
+          {canScrollRight && (
+            <>
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-bg to-transparent" />
+              <button
+                aria-label="Scroll tabs right"
+                onClick={() => scrollBy(120)}
+                className="absolute inset-y-0 right-0 flex cursor-pointer items-center px-1 text-muted hover:text-ink"
+              >
+                ›
+              </button>
+            </>
+          )}
+        </div>
       </header>
 
       <main className="mx-auto flex max-w-[1600px] flex-col gap-4 p-5">
@@ -259,6 +423,8 @@ export default function App() {
         {tab === 'whatif' && <WhatIfPanel snapshot={snapshot.data} />}
 
         {tab === 'reservations' && <ReservationsPanel snapshot={snapshot.data} />}
+
+        {tab === 'docs' && <Docs />}
       </main>
 
       <footer className="mt-12 border-t border-edge bg-gradient-to-t from-[var(--color-footer-grad)] to-bg px-6 py-8 text-xs text-muted-2">
@@ -292,6 +458,7 @@ export default function App() {
             <a href="#chaos" onClick={() => setTab('chaos')} className="hover:text-ink">Chaos</a>
             <a href="#whatif" onClick={() => setTab('whatif')} className="hover:text-ink">What-If</a>
             <a href="#reservations" onClick={() => setTab('reservations')} className="hover:text-ink">Reservations</a>
+            <a href="#docs" onClick={() => setTab('docs')} className="hover:text-ink">Docs</a>
             <span className="text-edge-2">|</span>
             <a
               href="https://github.com/riaan-attar/raptwin"
