@@ -2,6 +2,11 @@ import { useMemo, useState } from 'react'
 import { useDeleteLink, useObserve, useSaveLink, useTopology } from '../../api/hooks'
 import type { LinkProfile, LinkSpec, Snapshot, SnapshotLink } from '../../api/types'
 import { fmt } from '../../lib/format'
+import { filterLinks, useLinkFilters } from '../../lib/filters'
+import { useSelection } from '../../lib/useSelection'
+import { LinkBulkBar } from '../bulk/LinkBulkBar'
+import { LinkFilterControls } from '../bulk/LinkFilterControls'
+import { useBulkRunner } from '../bulk/useBulkRunner'
 import {
   Badge,
   Button,
@@ -17,6 +22,7 @@ import {
   Th,
   inputCls,
 } from '../ui/primitives'
+import { SelectCell, SelectHeader } from '../ui/selection'
 
 type Row = {
   key: string
@@ -28,11 +34,12 @@ export function LinkManager({ snapshot }: { snapshot?: Snapshot }) {
   const topology = useTopology()
   const deleteLink = useDeleteLink()
   const observe = useObserve()
-  const [query, setQuery] = useState('')
+  const { filters, set, reset, activeCount } = useLinkFilters()
   const [editing, setEditing] = useState<LinkSpec | 'new' | null>(null)
-  const [notice, setNotice] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
+  const runner = useBulkRunner()
+  const setNotice = runner.setNotice
 
-  const rows = useMemo<Row[]>(() => {
+  const allRows = useMemo<Row[]>(() => {
     const live = new Map((snapshot?.links ?? []).map((l) => [l.key, l]))
     const out: Row[] = (topology.data?.links ?? []).map((spec) => ({
       key: spec.key,
@@ -44,9 +51,21 @@ export function LinkManager({ snapshot }: { snapshot?: Snapshot }) {
     for (const l of snapshot?.links ?? []) {
       if (!declared.has(l.key)) out.push({ key: l.key, live: l })
     }
-    const q = query.trim().toLowerCase()
-    return q ? out.filter((r) => r.key.toLowerCase().includes(q)) : out
-  }, [topology.data, snapshot, query])
+    return out
+  }, [topology.data, snapshot])
+
+  const rows = useMemo(
+    () => filterLinks(allRows, filters, (r) => ({ key: r.key, metrics: r.live?.effective })),
+    [allRows, filters],
+  )
+  const allKeys = useMemo(() => allRows.map((r) => r.key), [allRows])
+  const selection = useSelection(allKeys)
+  const visibleKeys = useMemo(() => rows.map((r) => r.key), [rows])
+  const selectedRows = useMemo(() => allRows.filter((r) => selection.selected.has(r.key)), [allRows, selection.selected])
+  const selectedLinks = useMemo(
+    () => selectedRows.flatMap((r) => (r.live ? [r.live] : [])),
+    [selectedRows],
+  )
 
   const endpoints = useMemo(() => {
     const set = new Set<string>(topology.data?.sites ?? [])
@@ -63,6 +82,28 @@ export function LinkManager({ snapshot }: { snapshot?: Snapshot }) {
     } catch (e) {
       setNotice({ tone: 'err', text: (e as Error).message })
     }
+  }
+
+  async function deleteSelected() {
+    const keys = selectedRows.map((r) => r.key)
+    const preview = keys.slice(0, 6).join('\n') + (keys.length > 6 ? `\n+${keys.length - 6} more` : '')
+    if (!window.confirm(`Delete ${keys.length} link(s)?\n\n${preview}`)) return
+    let ok = 0
+    const failed: string[] = []
+    for (const key of keys) {
+      try {
+        await deleteLink.mutateAsync(key)
+        ok++
+      } catch (e) {
+        failed.push(`${key}: ${(e as Error).message}`)
+      }
+    }
+    selection.clear()
+    setNotice(
+      failed.length
+        ? { tone: 'err', text: `Deleted ${ok} of ${keys.length}. Failed: ${failed.slice(0, 3).join('; ')}` }
+        : { tone: 'ok', text: `Deleted ${ok} link(s).` },
+    )
   }
 
   async function toggleDown(row: Row) {
@@ -84,27 +125,25 @@ export function LinkManager({ snapshot }: { snapshot?: Snapshot }) {
       title="Links"
       subtitle="Declared links are saved to the links: section of sim/topology.yaml"
       actions={
-        <>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search endpoints…"
-            aria-label="Search links"
-            className={`${inputCls} w-48`}
-          />
-          <Button variant="primary" onClick={() => setEditing('new')}>
-            + Add link
-          </Button>
-        </>
+        <Button variant="primary" onClick={() => setEditing('new')}>
+          + Add link
+        </Button>
       }
     >
-      {notice && (
-        <div className="mb-3">
-          <Notice tone={notice.tone} onDismiss={() => setNotice(null)}>
-            {notice.text}
-          </Notice>
-        </div>
-      )}
+      <LinkFilterControls filters={filters} set={set} reset={reset} activeCount={activeCount} />
+      <LinkBulkBar
+        noun="links"
+        links={selectedLinks}
+        detail={selectedRows.length > selectedLinks.length ? 'some selected links have no live state' : undefined}
+        selection={selection}
+        visibleKeys={visibleKeys}
+        runner={runner}
+        extra={
+          <Button variant="bad" disabled={deleteLink.isPending || runner.pending} onClick={() => void deleteSelected()}>
+            Delete selected
+          </Button>
+        }
+      />
       {topology.isError && (
         <div className="mb-3">
           <Notice tone="err">{(topology.error as Error).message}</Notice>
@@ -115,6 +154,7 @@ export function LinkManager({ snapshot }: { snapshot?: Snapshot }) {
         maxHeight="560px"
         head={
           <>
+            <SelectHeader visibleKeys={visibleKeys} selection={selection} />
             <Th>Endpoints</Th>
             <Th>Profile / QoS</Th>
             <Th>Speed</Th>
@@ -127,7 +167,7 @@ export function LinkManager({ snapshot }: { snapshot?: Snapshot }) {
         }
         empty={
           rows.length === 0 ? (
-            <EmptyRow colSpan={8}>
+            <EmptyRow colSpan={9}>
               {topology.isLoading ? 'Loading topology…' : 'No links yet. Add one to connect nodes or sites.'}
             </EmptyRow>
           ) : undefined
@@ -138,7 +178,13 @@ export function LinkManager({ snapshot }: { snapshot?: Snapshot }) {
           const down = Boolean(eff.down)
           const [a, b] = row.key.split('|')
           return (
-            <tr key={row.key} className="hover:bg-[var(--color-row-hover)]">
+            <tr
+              key={row.key}
+              className={
+                selection.selected.has(row.key) ? 'bg-[var(--color-chip-info-bg)]/40' : 'hover:bg-[var(--color-row-hover)]'
+              }
+            >
+              <SelectCell id={row.key} selection={selection} label={row.key} />
               <Td className="whitespace-nowrap">
                 <Mono className="text-[13px]">{a}</Mono>
                 <span className="mx-1.5 text-muted-2">↔</span>

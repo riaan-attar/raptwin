@@ -2,19 +2,13 @@ import { useMemo, useState } from 'react'
 import { useDeleteNode, useNodeDescriptor, useObserve } from '../../api/hooks'
 import type { NodeDescriptor, Snapshot } from '../../api/types'
 import { fmt } from '../../lib/format'
-import {
-  Badge,
-  Button,
-  Card,
-  EmptyRow,
-  Modal,
-  Mono,
-  Notice,
-  TableShell,
-  Td,
-  Th,
-  inputCls,
-} from '../ui/primitives'
+import { filterNodes, useNodeFilters } from '../../lib/filters'
+import { useSelection } from '../../lib/useSelection'
+import { NodeBulkBar } from '../bulk/NodeBulkBar'
+import { NodeFilterControls } from '../bulk/NodeFilterControls'
+import { useBulkRunner } from '../bulk/useBulkRunner'
+import { Badge, Button, Card, EmptyRow, Modal, Mono, Notice, TableShell, Td, Th } from '../ui/primitives'
+import { SelectCell, SelectHeader } from '../ui/selection'
 import { newNodeTemplate } from '../../lib/descriptor'
 import { NodeEditor } from './NodeEditor'
 
@@ -24,9 +18,10 @@ type EditorTarget =
   | { mode: 'duplicate'; name: string }
 
 export function NodeManager({ snapshot }: { snapshot?: Snapshot }) {
-  const [query, setQuery] = useState('')
+  const { filters, set, reset, activeCount } = useNodeFilters()
   const [target, setTarget] = useState<EditorTarget | null>(null)
-  const [notice, setNotice] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
+  const runner = useBulkRunner()
+  const setNotice = runner.setNotice
 
   const deleteNode = useDeleteNode()
   const observe = useObserve()
@@ -36,16 +31,12 @@ export function NodeManager({ snapshot }: { snapshot?: Snapshot }) {
     () => [...new Set(nodes.map((n) => n.labels?.zone).filter(Boolean) as string[])].sort(),
     [nodes],
   )
-  const rows = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const sorted = [...nodes].sort((a, b) => a.name.localeCompare(b.name))
-    if (!q) return sorted
-    return sorted.filter((n) =>
-      `${n.name} ${n.class ?? ''} ${n.arch ?? ''} ${JSON.stringify(n.labels ?? {})}`
-        .toLowerCase()
-        .includes(q),
-    )
-  }, [nodes, query])
+  const fedMap = useMemo(() => snapshot?.node_federations ?? {}, [snapshot])
+  const allKeys = useMemo(() => nodes.map((n) => n.name), [nodes])
+  const selection = useSelection(allKeys)
+  const rows = useMemo(() => filterNodes(nodes, filters, fedMap), [nodes, filters, fedMap])
+  const visibleKeys = useMemo(() => rows.map((n) => n.name), [rows])
+  const selectedNodes = useMemo(() => nodes.filter((n) => selection.selected.has(n.name)), [nodes, selection.selected])
 
   async function remove(name: string, reservations: number) {
     const extra = reservations
@@ -73,6 +64,35 @@ export function NodeManager({ snapshot }: { snapshot?: Snapshot }) {
     }
   }
 
+  async function deleteSelected() {
+    const names = selectedNodes.map((n) => n.name)
+    const resv = selectedNodes.reduce((sum, n) => sum + Object.keys(n.dyn?.reservations ?? {}).length, 0)
+    const preview = names.slice(0, 8).join(', ') + (names.length > 8 ? `, +${names.length - 8} more` : '')
+    if (
+      !window.confirm(
+        `Delete ${names.length} node(s)?\n\n${preview}\n\nThis also deletes their YAML files` +
+          (resv ? ` and drops ${resv} active reservation(s).` : '.'),
+      )
+    )
+      return
+    let ok = 0
+    const failed: string[] = []
+    for (const name of names) {
+      try {
+        await deleteNode.mutateAsync(name)
+        ok++
+      } catch (e) {
+        failed.push(`${name}: ${(e as Error).message}`)
+      }
+    }
+    selection.clear()
+    setNotice(
+      failed.length
+        ? { tone: 'err', text: `Deleted ${ok} of ${names.length}. Failed: ${failed.slice(0, 3).join('; ')}` }
+        : { tone: 'ok', text: `Deleted ${ok} node(s).` },
+    )
+  }
+
   const existingNames = useMemo(() => new Set(nodes.map((n) => n.name)), [nodes])
 
   return (
@@ -80,32 +100,37 @@ export function NodeManager({ snapshot }: { snapshot?: Snapshot }) {
       title="Nodes"
       subtitle={`${rows.length} of ${nodes.length} nodes · changes are saved to nodes/<name>.yaml`}
       actions={
-        <>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name / class / label…"
-            aria-label="Search nodes"
-            className={`${inputCls} w-56`}
-          />
-          <Button variant="primary" onClick={() => setTarget({ mode: 'create' })}>
-            + Add node
-          </Button>
-        </>
+        <Button variant="primary" onClick={() => setTarget({ mode: 'create' })}>
+          + Add node
+        </Button>
       }
     >
-      {notice && (
-        <div className="mb-3">
-          <Notice tone={notice.tone} onDismiss={() => setNotice(null)}>
-            {notice.text}
-          </Notice>
-        </div>
-      )}
+      <NodeFilterControls
+        nodes={nodes}
+        fedMap={fedMap}
+        filters={filters}
+        set={set}
+        reset={reset}
+        activeCount={activeCount}
+      />
+      <NodeBulkBar
+        noun="nodes"
+        nodes={selectedNodes}
+        selection={selection}
+        visibleKeys={visibleKeys}
+        runner={runner}
+        extra={
+          <Button variant="bad" disabled={deleteNode.isPending || runner.pending} onClick={() => void deleteSelected()}>
+            Delete selected
+          </Button>
+        }
+      />
 
       <TableShell
         maxHeight="620px"
         head={
           <>
+            <SelectHeader visibleKeys={visibleKeys} selection={selection} />
             <Th>Name</Th>
             <Th>Class / Arch</Th>
             <Th>Zone</Th>
@@ -118,7 +143,7 @@ export function NodeManager({ snapshot }: { snapshot?: Snapshot }) {
         }
         empty={
           rows.length === 0 ? (
-            <EmptyRow colSpan={8}>
+            <EmptyRow colSpan={9}>
               {snapshot ? 'No nodes match. Add one to get started.' : 'Waiting for snapshot…'}
             </EmptyRow>
           ) : undefined
@@ -129,7 +154,13 @@ export function NodeManager({ snapshot }: { snapshot?: Snapshot }) {
           const resv = Object.keys(dyn.reservations ?? {}).length
           const down = Boolean(dyn.down)
           return (
-            <tr key={n.name} className="hover:bg-[var(--color-row-hover)]">
+            <tr
+              key={n.name}
+              className={
+                selection.selected.has(n.name) ? 'bg-[var(--color-chip-info-bg)]/40' : 'hover:bg-[var(--color-row-hover)]'
+              }
+            >
+              <SelectCell id={n.name} selection={selection} label={n.name} />
               <Td>
                 <Mono className="whitespace-nowrap text-[13px]">{n.name}</Mono>
               </Td>

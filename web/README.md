@@ -28,6 +28,7 @@ subscribes once and invalidates only the queries an event actually affects:
 | --- | --- |
 | `fabric.node.*`, `fabric.link.*`, `fabric.reservation.*` | snapshot |
 | `fabric.plan.*` | plans + snapshot |
+| `fabric.run.*` | job runs + snapshot |
 | `fabric.selfheal.*`, `fabric.guardian.*` | snapshot + plans |
 
 Events are coalesced over a 120 ms window, because a chaos scenario can emit
@@ -51,13 +52,14 @@ its lifetime.
 ## Managing the fabric
 
 Everything can be changed from the tabs in the header; each view also works as a
-deep link (`/#nodes`, `/#links`, `/#jobs`, `/#chaos`, `/#whatif`, `/#reservations`).
+deep link (`/#nodes`, `/#links`, `/#jobs`, `/#events`, `/#chaos`, `/#whatif`, `/#reservations`).
 
 | Tab | What you can do | Persists to |
 | --- | --- | --- |
 | Nodes | add, edit (form or full JSON descriptor), duplicate, rename, delete, take down / bring up | `nodes/<name>.yaml` |
 | Links | add, edit, delete declared links; take links down; drop runtime-only links | `links:` block of `sim/topology.yaml` |
-| Jobs | create, edit stages, test-fit (dry run), delete | `jobs/*.yaml` |
+| Job Library | create, edit stages, test-fit (dry run), delete | `jobs/*.yaml` |
+| Events & Jobs | watch running jobs, change or end their timers (free the reservations), browse the twin event feed | runtime only |
 | Chaos & Faults | run / stop topology scenarios, reset all faults, inject single observations, clear plan history, find a job's blast radius, download an incident bundle | runtime only |
 | What-if | compare the fabric against a proposed change (add / remove / upgrade nodes, links), optionally during an outage | nothing — both sides are forks |
 | Reservations | release one, filtered, or all | runtime only |
@@ -111,6 +113,7 @@ Both `dev` and `preview` proxy `/api` to `$FABRIC_DT_REMOTE`
 | `src/components/docs/` | Docs content: `pages/` (start, concepts, guides, reference), `diagrams.tsx`, shared `ui.tsx` |
 | `scripts/shoot.mjs` | Headless render + console-error check |
 | `scripts/e2e.mjs` | Drives the real UI (submits a job, asserts the result) |
+| `scripts/bulk.mjs` | Drives bulk select, filters and fault actions; **destructive**, run it only against a scratch twin |
 
 ## Panels
 
@@ -119,9 +122,17 @@ Both `dev` and `preview` proxy `/api` to `$FABRIC_DT_REMOTE`
 - **Plan a Job** — job catalog from `jobs/*.yaml`, JSON editor, strategy picker,
   dry-run toggle, demo job, batch planning
 - **Recent Plans / Plan Detail** — plan history and per-stage placements
-- **Nodes / Links / Federations / Federation Links** — live inventory
+- **Nodes / Links / Federations / Federation Links** — live inventory with filters,
+  a checkbox column, and bulk fault actions (take down, max out resources, derate,
+  degrade links, undo). Shared code: `components/bulk/`, `lib/faults.ts`,
+  `lib/filters.ts`, `lib/useSelection.ts`
 - **Inject Observation** — structured `/observe` apply + revert
 - **Twin Events** — CloudEvent feed from `dt.state`
+- **Events & Jobs** (`#events`) — every committed plan starts a timed run (default 30 s,
+  `FABRIC_JOB_DEFAULT_SECONDS`, switch off with `FABRIC_JOB_AUTO_RELEASE=0`) that frees its
+  reservations when it ends; cards with countdown, stage timeline, extend / finish / cancel,
+  bulk actions, run history, and a filterable event feed (`components/events/`). The timer
+  is simulated, it holds capacity and does not execute code
 - **Docs** (`#docs` tab) — 17-page documentation site: introduction, quickstart,
   architecture, state, nodes, topology, jobs, dashboard guide, planning, chaos,
   analysis tools, telemetry, API reference, configuration, measured results,

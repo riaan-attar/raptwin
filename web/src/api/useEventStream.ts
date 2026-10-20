@@ -13,8 +13,10 @@ const FLUSH_MS = 120
 
 function keysFor(type: string): (readonly string[])[] {
   const keys: (readonly string[])[] = [queryKeys.events]
-  if (type.startsWith('fabric.plan')) {
-    keys.push(queryKeys.plans, queryKeys.snapshot)
+  if (type.startsWith('fabric.run')) {
+    keys.push(queryKeys.runs, queryKeys.snapshot)
+  } else if (type.startsWith('fabric.plan')) {
+    keys.push(queryKeys.plans, queryKeys.snapshot, queryKeys.runs)
   } else if (type.startsWith('fabric.job')) {
     keys.push(queryKeys.jobs)
   } else if (type.startsWith('fabric.chaos') || type.startsWith('fabric.overrides')) {

@@ -119,6 +119,34 @@ class SelfHealingController:
                 if not self._managed[job_id]:
                     self._managed.pop(job_id, None)
 
+    def job_reservations(self, job_id: str) -> List[tuple[str, str]]:
+        """(node, reservation_id) for every reservation currently held for a job.
+
+        Reservation ids change on failover (the primary is swapped and shadows are
+        added), so callers that free a job must ask here instead of remembering ids.
+        """
+        with self._lock:
+            out: List[tuple[str, str]] = []
+            for managed in self._managed.get(job_id, {}).values():
+                out.append((managed.primary_node, managed.reservation_id))
+                for shadow in managed.shadow_reservations:
+                    out.append((shadow.node, shadow.reservation_id))
+            return out
+
+    def stage_nodes(self, job_id: str) -> Dict[str, str]:
+        """stage id -> the node currently acting as that stage's primary."""
+        with self._lock:
+            return {sid: m.primary_node for sid, m in self._managed.get(job_id, {}).items()}
+
+    def forget_job(self, job_id: str) -> None:
+        with self._lock:
+            self._managed.pop(job_id, None)
+
+    def forget_all(self) -> None:
+        """Drop every managed plan (used when the twin is restarted)."""
+        with self._lock:
+            self._managed.clear()
+
     def stop(self) -> None:
         self._stop.set()
         self._thread.join(timeout=2.0)

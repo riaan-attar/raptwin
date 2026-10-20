@@ -14,6 +14,7 @@ export function Dashboard() {
           [<b key="a">Connection line</b>, 'Shows whether the API is reachable, and whether live updates arrive over the event stream or by polling (every 2 seconds) while the stream is down.'],
           [<b key="b">Live / Paused</b>, 'Pauses event-stream and polling updates so you can read a screen without it changing.'],
           [<b key="c">Refresh</b>, 'Refetches the snapshot and plan history immediately.'],
+          [<b key="r">Restart</b>, 'Rebuilds the whole twin from the files on disk: drops every reservation, plan, injected fault and chaos run. You must type the word confirm before the button enables; the server checks the same phrase.'],
           [<b key="d">Theme toggle</b>, 'Switches between dark and light. The choice is remembered in the browser.'],
           [<b key="e">Tabs</b>, 'Each tab has its own address (#nodes, #chaos, #docs/api, ...), so reloads and the back button keep your place.'],
         ]}
@@ -28,15 +29,54 @@ export function Dashboard() {
           [<b key="3">Plan a Job</b>, 'Job catalogue picker, JSON editor, strategy picker, dry-run toggle.', 'Run a job with any strategy, try the demo job, or plan a batch.'],
           [<b key="4">Recent Plans</b>, 'History of plans with strategy, latency and feasibility.', 'Compare strategies side by side by planning the same job repeatedly.'],
           [<b key="5">Plan Detail</b>, 'Per-stage placement, compute and transfer time, energy, risk, cost, carbon, fallbacks.', 'See why a stage landed where it did, and where it would fail over.'],
-          [<b key="6">Nodes / Links</b>, 'Live inventory with dynamic and effective values.', 'Check reliability, derate and loss after a fault.'],
-          [<b key="7">Federations / Federation Links</b>, 'Load blends CPU, memory and accelerator use per zone; cross-zone health.', 'Spot a hot or partitioned zone.'],
+          [<b key="6">Nodes / Links</b>, 'Live inventory with dynamic and effective values.', 'Filter, tick rows and inject faults in bulk (see below); check reliability, derate and loss.'],
+          [<b key="7">Federations / Federation Links</b>, 'Load blends CPU, memory and accelerator use per zone; cross-zone health.', 'Spot a hot or partitioned zone, then take a whole federation down or max it out.'],
           [<b key="8">Twin Events</b>, 'CloudEvents: plan commits, overrides, self-healing, guardian.', 'Audit what just happened.'],
         ]}
       />
 
+      <H2 id="bulk">Filters, selection and bulk actions</H2>
+      <P>
+        The Nodes, Links, Federations and Federation Links tables on the Dashboard, and the tables on the Nodes and Links
+        tabs, share the same controls: filters above the table, a checkbox column on the left, and an action bar that
+        appears when you tick rows. Selection survives changing a filter; the bar tells you how many selected rows the
+        current filter is hiding, and every action applies to all selected rows, hidden or not.
+      </P>
+      <DocTable
+        head={['Table', 'Filters']}
+        rows={[
+          [<b key="n">Nodes</b>, 'Search (name, class, arch, labels), zone or federation, class, arch, format, GPU, status (up, down, derated, saturated at 90% CPU, has reservations), reliability up to, and sort (name, free CPU, utilisation, reliability, derate).'],
+          [<b key="l">Links</b>, 'Search, status (OK, degraded at 2% loss, down), minimum loss, and sort (loss, RTT, slowest).'],
+          [<b key="f">Federations</b>, 'Search, status (has down nodes, hot at 80% load, has reservations), and sort (name, load, most down).'],
+          [<b key="fl">Federation Links</b>, 'Search, status (has down links, degraded), and sort (name, loss, RTT).'],
+        ]}
+      />
+      <DocTable
+        head={['Selected', 'Actions']}
+        rows={[
+          [<b key="n2">Nodes</b>, 'Take down, Bring up, Max out CPU, memory, VRAM or all three, Relieve, Thermal derate (0 to 1), Power cap (W), Lower reliability (0 to 1), Clear all faults. The Nodes tab adds Delete selected.'],
+          [<b key="l2">Links</b>, 'Take down, Bring up, Degrade (loss %, RTT, jitter, speed; leave a field empty to keep it), Restore all fields. The Links tab adds Delete selected.'],
+          [<b key="f2">Federations</b>, 'The same node actions, applied to every node in each selected federation. Each row also has one-click Take down, Bring up and Max out for that federation.'],
+          [<b key="fl2">Federation Links</b>, 'The link actions, applied to the real links that make up each selected pair of federations.'],
+        ]}
+      />
+      <UL
+        items={[
+          <>Large or whole-federation actions ask for confirmation. After any action a result line appears with an <b>Undo</b> that restores the exact previous values.</>,
+          <><b>Max out</b> sets the used CPU, memory and VRAM to the node&apos;s full capacity, so its free capacity becomes zero and planners avoid it. <b>Relieve</b> sets usage back to what the node&apos;s real reservations hold (not zero), so live plans keep their accounting.</>,
+          <>To wipe everything at once, use the header <b>Restart</b> button, which rebuilds the twin from disk (learned planner state is kept).</>,
+          <>Releasing a real reservation after maxing a node out lowers its used capacity from the maxed value, so use Undo or Relieve to return to normal.</>,
+          <>These actions use the same <Mono>/observe</Mono> route as Inject Observation, so they show up as <Mono>fabric.node.observe</Mono> and <Mono>fabric.link.observe</Mono> events and are cleared by <b>Reset faults</b> on the Chaos tab.</>,
+        ]}
+      />
+      <Callout tone="warn" title="Open on the public demo">
+        <Mono>/observe</Mono> needs no API key, so on the hosted demo any visitor can take nodes or whole federations down.
+        Use Reset faults to restore everything.
+      </Callout>
+
       <H2 id="nodes-tab">Nodes tab</H2>
       <P>
-        Create, edit and delete nodes. The editor groups fields into Identity, Compute, and Network &amp; health. Saving
+        Create, edit and delete nodes, or tick several and use the bulk bar (including Delete selected). The editor groups fields into Identity, Compute, and Network &amp; health. Saving
         writes <Mono>nodes/&lt;name&gt;.yaml</Mono> and applies it to the live twin immediately. Deleting also removes the
         node’s reservations.
       </P>
@@ -45,11 +85,33 @@ export function Dashboard() {
         Manage declared links. They are saved to the <Mono>links:</Mono> section of <Mono>sim/topology.yaml</Mono>, and the
         endpoints can be node names or topology sites. Pick a profile, then override individual metrics if needed.
       </P>
-      <H2 id="jobs-tab">Jobs tab</H2>
+      <H2 id="jobs-tab">Job Library tab</H2>
       <P>
         The job library under <Mono>jobs/*.yaml</Mono>, used by the planner and the Dashboard composer. Create, edit, delete
         and plan jobs here.
       </P>
+      <H2 id="events-tab">Events &amp; Jobs tab</H2>
+      <P>
+        Every committed plan (not a dry run) starts a <b>run</b> with a timer. When the timer reaches zero the run
+        completes and its reservations are freed, so the capacity returns to the fabric. Everything is managed from this tab.
+      </P>
+      <DocTable
+        head={['Panel', 'What it does']}
+        rows={[
+          [<b key="s">Summary</b>, 'Running count, soonest to finish, reservations held by runs, and the settings: an auto-release switch and the default run length in seconds.'],
+          [<b key="r">Running jobs</b>, 'One card per run: live countdown and progress, a per-stage timeline (done, active, pending, with a warning if the stage\'s node went down or failed over), predicted latency against the deadline, cost and carbon. Buttons: Finish now, Cancel, +30 s, +1 min, Set timer. Tick several runs for bulk Finish, Cancel or extend.'],
+          [<b key="h">Recent runs</b>, 'Completed and cancelled runs, with the reason, the duration and how many reservations were freed.'],
+          [<b key="e">Twin events</b>, 'The full event feed with family chips, search, pause, a 100/250/500 window and a raw view of each CloudEvent. Click a subject to filter to it.'],
+        ]}
+      />
+      <UL
+        items={[
+          <>Set the length per job in <b>Plan a Job</b> (&quot;Run for&quot; seconds), in the job&apos;s own <Mono>duration_s</Mono>, or leave both blank for the default (30 s).</>,
+          <>The timer is <b>simulated</b>: a running job holds capacity for those seconds, it does not execute code. The plan&apos;s predicted latency (about a second) is shown separately.</>,
+          <>With auto-release off, a committed plan holds its reservations until you release them, as before. The settings are held in memory and reset when the API restarts (<Mono>FABRIC_JOB_DEFAULT_SECONDS</Mono> and <Mono>FABRIC_JOB_AUTO_RELEASE</Mono> give the starting values).</>,
+          <>The resource guardian can still free a reservation on a saturated node early (after 300 s), and Restart drops all runs.</>,
+        ]}
+      />
       <H2 id="chaos-tab">Chaos &amp; Faults tab</H2>
       <DocTable
         head={['Panel', 'What it does']}
@@ -73,7 +135,7 @@ export function Dashboard() {
       </P>
       <Callout tone="note" title="Actions that need an API key">
         If the server is configured with an API key, actions that change state (nodes, links, jobs, chaos, clearing plans,
-        resetting faults) need a key. The hosted dashboard sends it for you; planning, what-if and blast radius never need
+        resetting faults, restarting the twin) need a key. The hosted dashboard sends it for you; planning, what-if and blast radius never need
         one. See <PageLink to="deployment">Deployment and security</PageLink>.
       </Callout>
 

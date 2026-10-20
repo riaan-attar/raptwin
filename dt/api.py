@@ -26,6 +26,17 @@ GET    /chaos                     scenarios + current run status
 POST   /chaos/start               { scenario?: "...", speed?: 10 }
 POST   /chaos/stop
 POST   /overrides/reset           clear every injected fault
+POST   /twin/restart              { confirm: "confirm" } rebuild the whole twin from disk
+
+Timed job runs (a committed plan holds its reservations for a timer, then frees them)
+GET    /runs                      ?state=running|finished|all &limit=  (+ settings, now_ms)
+GET    /runs/<id>                 one run with per-stage progress
+POST   /runs/<id>/finish          end now (completed) and free reservations
+POST   /runs/<id>/cancel          cancel and free reservations
+POST   /runs/<id>/timer           { remaining_s } or { extend_s }
+POST   /runs/finish_all           end every running job now
+GET    /runs/settings             { auto_release, default_duration_s }
+POST   /runs/settings             { auto_release?, default_duration_s? }
 POST   /blast_radius              { job|job_id, strategy?, depth?, branch? }
                                   smallest fault sets that break a job
 GET    /bundle                    download a reproducible incident bundle (zip)
@@ -36,7 +47,7 @@ Auth (FR-31)
 ------------
 Set FABRIC_API_KEY to require an `X-API-Key` header on destructive/mutating
 routes (add/delete node, links, jobs, clear plans, start/stop chaos, reset
-overrides). Unset (default): no auth, matching every prior deployment.
+overrides, restart twin). Unset (default): no auth, matching every prior deployment.
 Read-only routes and evaluation routes (/observe, /plan*, /release, /whatif,
 /blast_radius) are never gated, so the public dashboard needs no key.
 
@@ -76,6 +87,7 @@ from .policy.greedy import GreedyPlanner
 from .policy.mdp import MarkovPlanner
 from .policy.resilient import FederatedPlanner
 from .policy.rl_stub import RLPolicy
+from .runs import JobRunManager, validate_duration
 from .self_heal import ResourceGuardian, SelfHealingController
 from .state import DTState, link_key, safe_float, safe_int, valid_name
 from .whatif import ChangeError, compare
@@ -199,6 +211,12 @@ RESOURCE_GUARDIAN = ResourceGuardian(
 NOISE_INJECTOR = maybe_start_noise(STATE)
 
 CHAOS = ChaosRunner(STATE)
+RUNS = JobRunManager(
+    STATE,
+    SELF_HEALER,
+    default_duration_s=safe_float(os.environ.get("FABRIC_JOB_DEFAULT_SECONDS", 30.0), 30.0),
+    auto_release=os.environ.get("FABRIC_JOB_AUTO_RELEASE", "1").lower() in {"1", "true", "yes"},
+)
 
 # Serialises edits to jobs/*.yaml so two saves can't interleave a rewrite.
 _JOBS_LOCK = threading.Lock()
@@ -248,6 +266,12 @@ _GATED_ENDPOINTS = {
     "chaos_start",
     "chaos_stop",
     "overrides_reset",
+    "twin_restart",
+    "run_finish",
+    "run_cancel",
+    "run_timer",
+    "runs_finish_all",
+    "runs_settings_update",
 }
 
 
@@ -483,6 +507,14 @@ def plan():
     if not stages:
         return _err("job.stages is empty")
 
+    # Validate the run timer before anything is reserved.
+    for source, value in (("duration_s", body.get("duration_s")), ("job duration_s", job.get("duration_s"))):
+        if value is not None:
+            try:
+                validate_duration(value, name=source)
+            except ValueError as exc:
+                return _err(str(exc))
+
     try:
         strategy_raw = body.get("strategy") or "greedy"
         strategy = strategy_raw.lower().strip()
@@ -558,6 +590,19 @@ def plan():
                 planner_result["self_healing_registered"] = True
             except Exception:
                 app.logger.exception("failed to register plan with self-healer")
+        planner_result["run"] = None
+        if not dry_run and planner_result.get("reservations"):
+            auto = body.get("auto_release")
+            if auto is None:
+                auto = RUNS.settings()["auto_release"]
+            if auto:
+                try:
+                    run = RUNS.start(job, planner_result, duration_s=body.get("duration_s"))
+                    planner_result["run"] = {
+                        k: run[k] for k in ("run_id", "started_ms", "ends_ms", "duration_s")
+                    }
+                except Exception:
+                    app.logger.exception("failed to start a run for the committed plan")
         RECENT_PLANS.appendleft(_slim_plan_for_history(planner_result))
         # Announce on the event bus so live clients refresh without polling.
         try:
@@ -678,6 +723,9 @@ def plan_batch():
     for j in jobs:
         # Reuse the logic by faking a request-local plan
         tmp_req = {"job": j, "strategy": strategy, "dry_run": dry_run}
+        for opt in ("duration_s", "auto_release"):
+            if opt in body:
+                tmp_req[opt] = body[opt]
         with app.test_request_context(json=tmp_req):
             plan_result = app.view_functions["plan"]()  # type: ignore
             if isinstance(plan_result, tuple):
@@ -1109,6 +1157,116 @@ def overrides_reset():
     stopped = CHAOS.stop()
     result = STATE.reset_overrides()
     return _ok({**result, "chaos_stopped": stopped})
+
+
+# -----------------------------------
+# Timed job runs
+# -----------------------------------
+
+
+def _run_or_error(fn, *args, **kwargs):
+    """Call a RUNS method and map its errors to HTTP statuses."""
+    try:
+        return _ok(fn(*args, **kwargs))
+    except KeyError as exc:
+        return _err(f"run {exc.args[0]!r} not found", status=404)
+    except RuntimeError as exc:
+        return _err(str(exc), status=409)
+    except ValueError as exc:
+        return _err(str(exc))
+
+
+@app.get("/runs")
+def runs_list():
+    """Timed runs of committed plans: ?state=running|finished|all (default all) &limit=."""
+    state_filter = (request.args.get("state") or "all").lower()
+    if state_filter not in {"running", "finished", "all"}:
+        return _err("state must be running, finished or all")
+    limit = max(1, min(safe_int(request.args.get("limit", 100), 100), 200))
+    return _ok(
+        {
+            "runs": RUNS.list(state_filter, limit),
+            "settings": RUNS.settings(),
+            "now_ms": RUNS.now_ms(),
+            "reserved_by_running": RUNS.reserved_by_running(),
+        }
+    )
+
+
+@app.get("/runs/settings")
+def runs_settings():
+    return _ok(RUNS.settings())
+
+
+@app.post("/runs/settings")
+def runs_settings_update():
+    """Body: { auto_release?: bool, default_duration_s?: seconds }. In memory only."""
+    body = request.get_json(silent=True) or {}
+    return _run_or_error(
+        RUNS.update_settings,
+        auto_release=body.get("auto_release"),
+        default_duration_s=body.get("default_duration_s"),
+    )
+
+
+@app.post("/runs/finish_all")
+def runs_finish_all():
+    """End every running job now, freeing all their reservations."""
+    runs = RUNS.finish_all()
+    return _ok({"finished": len(runs), "runs": runs})
+
+
+@app.get("/runs/<run_id>")
+def run_get(run_id: str):
+    run = RUNS.get(run_id)
+    return _ok(run) if run else _err(f"run {run_id!r} not found", status=404)
+
+
+@app.post("/runs/<run_id>/finish")
+def run_finish(run_id: str):
+    """End a running job now as completed and free its reservations."""
+    return _run_or_error(RUNS.finish, run_id)
+
+
+@app.post("/runs/<run_id>/cancel")
+def run_cancel(run_id: str):
+    """Cancel a running job and free its reservations."""
+    return _run_or_error(RUNS.cancel, run_id)
+
+
+@app.post("/runs/<run_id>/timer")
+def run_timer(run_id: str):
+    """Body: { remaining_s } sets the time left from now; { extend_s } adds (negative shortens)."""
+    body = request.get_json(silent=True) or {}
+    return _run_or_error(
+        RUNS.set_timer, run_id, remaining_s=body.get("remaining_s"), extend_s=body.get("extend_s")
+    )
+
+
+RESTART_CONFIRMATION = "confirm"
+
+
+@app.post("/twin/restart")
+def twin_restart():
+    """Restart the whole twin in-process.
+
+    Body must be {"confirm": "confirm"}: the dashboard asks the user to type it, and
+    requiring it here keeps a stray request from wiping a live fabric. Stops chaos,
+    forgets self-healing plans, clears plan history and rebuilds all state from disk.
+    Learned planner state (RL Q-table, bandit) is kept.
+    """
+    body = request.get_json(silent=True) or {}
+    if str(body.get("confirm", "")).strip().lower() != RESTART_CONFIRMATION:
+        return _err('restart needs {"confirm": "confirm"}')
+    stopped = CHAOS.stop()
+    SELF_HEALER.forget_all()
+    runs_dropped = RUNS.forget_all()
+    plans_cleared = len(RECENT_PLANS)
+    RECENT_PLANS.clear()
+    result = STATE.restart()
+    return _ok(
+        {**result, "chaos_stopped": stopped, "plans_cleared": plans_cleared, "runs_dropped": runs_dropped}
+    )
 
 
 # -----------------------------------

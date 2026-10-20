@@ -76,6 +76,10 @@ Once dependencies are installed and the virtual environment is active, you can l
 Exposes `/snapshot`, `/plan`, `/plan_batch`, `/release`, and `/observe` endpoints while keeping node/link state, reservations, and overrides in sync.
 
 `/stream` additionally serves the twin's CloudEvent bus as Server-Sent Events, so clients can react the moment state changes instead of polling. `GET /plans` returns a slimmed history (the full `predictive`/`federation_summary` blobs stay on the `POST /plan` response and in `/snapshot`).
+
+`POST /twin/restart` (body `{"confirm": "confirm"}`) rebuilds the whole twin from disk: it drops every reservation, plan, injected fault and chaos run, and keeps node/topology files, jobs, learned planner state and the event history. It is gated by `FABRIC_API_KEY` like the other mutating routes. The dashboard's **Restart** button calls it after you type `confirm`.
+
+**Job runs and the timer.** A committed (non dry-run) `/plan` starts a timed *run* that frees the plan's reservations when it ends (`dt/runs.py`). Length: body `duration_s`, else the job's own optional `duration_s`, else the default (`FABRIC_JOB_DEFAULT_SECONDS`, 30 s). Set `FABRIC_JOB_AUTO_RELEASE=0` (or pass `"auto_release": false`) to keep the old hold-until-released behaviour. The timer is simulated: it holds capacity, it does not execute code. Routes: `GET /runs`, `GET /runs/<id>`, `POST /runs/<id>/finish|cancel|timer` (`{"remaining_s": n}` or `{"extend_s": n}`), `POST /runs/finish_all`, `GET|POST /runs/settings`; the POSTs are gated by `FABRIC_API_KEY`. Events are `fabric.run.started|completed|cancelled|timer`. The dashboard's **Events & Jobs** tab manages all of it; settings reset when the API restarts.
 ```bash
 python -m dt.api --host 0.0.0.0 --port 8080 --debug
 ```

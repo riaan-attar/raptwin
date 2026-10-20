@@ -1,63 +1,48 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { Snapshot } from '../api/types'
 import { fmt } from '../lib/format'
+import { filterNodes, useNodeFilters } from '../lib/filters'
+import { useSelection } from '../lib/useSelection'
+import { NodeBulkBar } from './bulk/NodeBulkBar'
+import { NodeFilterControls } from './bulk/NodeFilterControls'
+import { useBulkRunner } from './bulk/useBulkRunner'
 import { Badge, Card, EmptyRow, Mono, Tag, TableShell, Td, Th } from './ui/primitives'
+import { SelectCell, SelectHeader } from './ui/selection'
 
 export function NodesTable({ snapshot }: { snapshot?: Snapshot }) {
-  const [query, setQuery] = useState('')
-  const [arch, setArch] = useState('')
+  const { filters, set, reset, activeCount } = useNodeFilters()
+  const runner = useBulkRunner()
 
-  const fedMap = snapshot?.node_federations ?? {}
+  const nodes = useMemo(() => snapshot?.nodes ?? [], [snapshot])
+  const fedMap = useMemo(() => snapshot?.node_federations ?? {}, [snapshot])
+  const allKeys = useMemo(() => nodes.map((n) => n.name), [nodes])
+  const selection = useSelection(allKeys)
 
-  const arches = useMemo(() => {
-    const set = new Set<string>()
-    for (const n of snapshot?.nodes ?? []) if (n.arch) set.add(n.arch)
-    return [...set].sort()
-  }, [snapshot])
-
-  const rows = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return (snapshot?.nodes ?? []).filter((n) => {
-      if (arch && n.arch !== arch) return false
-      if (!q) return true
-      const fed = fedMap[n.name] ?? ''
-      const hay = `${n.name} ${n.class ?? ''} ${n.arch ?? ''} ${fed} ${JSON.stringify(
-        n.labels ?? {},
-      )}`.toLowerCase()
-      return hay.includes(q)
-    })
-  }, [snapshot, query, arch, fedMap])
+  const rows = useMemo(() => filterNodes(nodes, filters, fedMap), [nodes, filters, fedMap])
+  const visibleKeys = useMemo(() => rows.map((n) => n.name), [rows])
+  const selectedNodes = useMemo(() => nodes.filter((n) => selection.selected.has(n.name)), [nodes, selection.selected])
 
   return (
-    <Card
-      title="Nodes"
-      subtitle={`${rows.length} of ${snapshot?.nodes.length ?? 0} shown`}
-      actions={
-        <>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter by name / arch / label…"
-            className="w-56 rounded-lg border border-edge-2 bg-[var(--color-input-bg)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-input-focus-border)]"
-          />
-          <select
-            value={arch}
-            onChange={(e) => setArch(e.target.value)}
-            className="rounded-lg border border-edge-2 bg-[var(--color-input-bg)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-input-focus-border)]"
-          >
-            <option value="">Arch: All</option>
-            {arches.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </>
-      }
-    >
+    <Card title="Nodes" subtitle={`${rows.length} of ${nodes.length} shown`}>
+      <NodeFilterControls
+        nodes={nodes}
+        fedMap={fedMap}
+        filters={filters}
+        set={set}
+        reset={reset}
+        activeCount={activeCount}
+      />
+      <NodeBulkBar
+        noun="nodes"
+        nodes={selectedNodes}
+        selection={selection}
+        visibleKeys={visibleKeys}
+        runner={runner}
+      />
       <TableShell
         head={
           <>
+            <SelectHeader visibleKeys={visibleKeys} selection={selection} />
             <Th>Name / Class</Th>
             <Th>Arch &amp; Formats</Th>
             <Th>CPU (free/max)</Th>
@@ -68,8 +53,8 @@ export function NodesTable({ snapshot }: { snapshot?: Snapshot }) {
         }
         empty={
           rows.length === 0 ? (
-            <EmptyRow colSpan={6}>
-              {snapshot ? 'No nodes match the filter.' : 'Waiting for snapshot…'}
+            <EmptyRow colSpan={7}>
+              {snapshot ? 'No nodes match the filters.' : 'Waiting for snapshot…'}
             </EmptyRow>
           ) : undefined
         }
@@ -80,8 +65,13 @@ export function NodesTable({ snapshot }: { snapshot?: Snapshot }) {
           const resv = Object.keys(dyn.reservations ?? {}).length
           const fed = fedMap[n.name] ?? n.labels?.federation ?? n.labels?.zone
           const derate = Number(dyn.thermal_derate ?? 0)
+          const picked = selection.selected.has(n.name)
           return (
-            <tr key={n.name} className="hover:bg-[var(--color-row-hover)]">
+            <tr
+              key={n.name}
+              className={picked ? 'bg-[var(--color-chip-info-bg)]/40' : 'hover:bg-[var(--color-row-hover)]'}
+            >
+              <SelectCell id={n.name} selection={selection} label={n.name} />
               <Td>
                 <Mono className="text-[13px]">{n.name}</Mono>
                 <div className="text-xs text-muted-2">{n.class}</div>

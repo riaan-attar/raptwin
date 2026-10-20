@@ -3,6 +3,7 @@ import { usePlans, useSnapshot } from './api/hooks'
 import { useEventStream } from './api/useEventStream'
 import { Docs } from './components/Docs'
 import { EventsFeed } from './components/EventsFeed'
+import { EventsJobsPage } from './components/events/EventsJobsPage'
 import { FederationLinksTable, FederationsTable } from './components/FederationsPanel'
 import { JobComposer } from './components/JobComposer'
 import { LinksTable } from './components/LinksTable'
@@ -17,9 +18,10 @@ import { NodesTable } from './components/NodesTable'
 import { ObservationPanel } from './components/ObservationPanel'
 import { Overview } from './components/Overview'
 import { PlanStages } from './components/PlanStages'
+import { RestartTwinDialog } from './components/RestartTwinDialog'
 import { RecentPlans } from './components/RecentPlans'
 import { TopologyGraph } from './components/TopologyGraph'
-import { Button } from './components/ui/primitives'
+import { Button, Notice } from './components/ui/primitives'
 import { cn } from './lib/format'
 import { useTheme } from './lib/theme'
 
@@ -27,7 +29,8 @@ const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'nodes', label: 'Nodes' },
   { id: 'links', label: 'Links' },
-  { id: 'jobs', label: 'Jobs' },
+  { id: 'jobs', label: 'Job Library' },
+  { id: 'events', label: 'Events & Jobs' },
   { id: 'chaos', label: 'Chaos & Faults' },
   { id: 'whatif', label: 'What-if' },
   { id: 'reservations', label: 'Reservations' },
@@ -103,6 +106,7 @@ const TAB_TITLES: Record<TabId, string> = {
   nodes: 'Nodes Management — RAP Twin Fabric Simulator | Riaan Attar',
   links: 'Fabric Links & Interconnects — RAP Twin | Riaan Attar',
   jobs: 'Job Composer & AI Workload Fitting — RAP Twin | Riaan Attar',
+  events: 'Running Jobs, Job Timer & Twin Events — RAP Twin | Riaan Attar',
   chaos: 'Chaos Testing & Autonomous Self-Healing — RAP Twin | Riaan Attar',
   whatif: 'What-If Topology & Capacity Analysis — RAP Twin | Riaan Attar',
   reservations: 'Fabric Resource Reservations — RAP Twin | Riaan Attar',
@@ -112,6 +116,8 @@ const TAB_TITLES: Record<TabId, string> = {
 export default function App() {
   const [live, setLive] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState(0)
+  const [restartOpen, setRestartOpen] = useState(false)
+  const [restartNote, setRestartNote] = useState<string | null>(null)
   const [tab, setTab] = useHashTab()
   const { scrollerRef, canScrollLeft, canScrollRight, scrollBy } = useNavScroll(tab)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -198,6 +204,9 @@ export default function App() {
               }}
             >
               Refresh
+            </Button>
+            <Button variant="bad" onClick={() => setRestartOpen(true)} title="Rebuild the whole twin from disk">
+              Restart
             </Button>
             <Button
               variant="ghost"
@@ -356,6 +365,24 @@ export default function App() {
       </header>
 
       <main className="mx-auto flex max-w-[1600px] flex-col gap-4 p-5">
+        {restartNote && (
+          <Notice tone="ok" onDismiss={() => setRestartNote(null)}>
+            {restartNote}
+          </Notice>
+        )}
+        {restartOpen && (
+          <RestartTwinDialog
+            onClose={() => setRestartOpen(false)}
+            onRestarted={(r) => {
+              setRestartOpen(false)
+              setSelectedPlan(0)
+              setRestartNote(
+                `Twin restarted: ${r.nodes} nodes and ${r.links} links reloaded; ${r.reservations_dropped} reservation(s) and ${r.plans_cleared} plan(s) cleared` +
+                  (r.chaos_stopped ? '; chaos run stopped.' : '.'),
+              )
+            }}
+          />
+        )}
         {snapshot.isError && (
           <div className="rounded-xl border border-[var(--color-chip-danger-border)] bg-[var(--color-chip-danger-bg)] p-4 text-sm text-[var(--color-chip-danger-text)]">
             <strong className="font-semibold">Cannot reach the Digital Twin API.</strong>
@@ -391,7 +418,7 @@ export default function App() {
               <LinksTable snapshot={snapshot.data} />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4">
               <FederationsTable snapshot={snapshot.data} />
               <FederationLinksTable snapshot={snapshot.data} />
             </div>
@@ -405,6 +432,8 @@ export default function App() {
         {tab === 'links' && <LinkManager snapshot={snapshot.data} />}
 
         {tab === 'jobs' && <JobManager />}
+
+        {tab === 'events' && <EventsJobsPage intervalMs={intervalMs} />}
 
         {tab === 'chaos' && (
           <>
@@ -454,7 +483,8 @@ export default function App() {
             <a href="#dashboard" onClick={() => setTab('dashboard')} className="hover:text-ink">Overview</a>
             <a href="#nodes" onClick={() => setTab('nodes')} className="hover:text-ink">Nodes</a>
             <a href="#links" onClick={() => setTab('links')} className="hover:text-ink">Links</a>
-            <a href="#jobs" onClick={() => setTab('jobs')} className="hover:text-ink">Jobs</a>
+            <a href="#jobs" onClick={() => setTab('jobs')} className="hover:text-ink">Job Library</a>
+            <a href="#events" onClick={() => setTab('events')} className="hover:text-ink">Events &amp; Jobs</a>
             <a href="#chaos" onClick={() => setTab('chaos')} className="hover:text-ink">Chaos</a>
             <a href="#whatif" onClick={() => setTab('whatif')} className="hover:text-ink">What-If</a>
             <a href="#reservations" onClick={() => setTab('reservations')} className="hover:text-ink">Reservations</a>

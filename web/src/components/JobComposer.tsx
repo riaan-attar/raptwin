@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useJobs, usePlanBatch, usePlanJob } from '../api/hooks'
+import { useJobs, usePlanBatch, usePlanJob, useRunSettings } from '../api/hooks'
 import { STRATEGIES, type Job, type Strategy } from '../api/types'
 import { makeDemoJob } from '../lib/demoJob'
 import { cn } from '../lib/format'
@@ -13,6 +13,8 @@ export function JobComposer() {
   const [selected, setSelected] = useState(0)
   const [strategy, setStrategy] = useState<Strategy>('greedy')
   const [dryRun, setDryRun] = useState(true)
+  const [runFor, setRunFor] = useState('')
+  const settings = useRunSettings()
   const [editor, setEditor] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -44,15 +46,20 @@ export function JobComposer() {
     }
   }
 
+  /** Blank means "use the job's own duration_s, else the default". */
+  const durationS = runFor.trim() === '' ? undefined : Number(runFor)
+
   async function submit(job: Job, label: string) {
     setNotice(null)
     setError(null)
     try {
-      const res = await planJob.mutateAsync({ job, strategy, dryRun })
+      const res = await planJob.mutateAsync({ job, strategy, dryRun, durationS })
       setNotice(
         res.infeasible
           ? `${label}: planner reported INFEASIBLE${res.reason ? ` (${res.reason})` : ''}`
-          : `${label}: ${res.job_id} placed in ${Number(res.latency_ms).toFixed(1)} ms`,
+          : `${label}: ${res.job_id} placed in ${Number(res.latency_ms).toFixed(1)} ms${
+              res.run ? ` · run started, frees its reservations in ${Math.round(res.run.duration_s)} s (see Events & Jobs)` : ''
+            }`,
       )
     } catch (e) {
       setError((e as Error).message)
@@ -74,6 +81,23 @@ export function JobComposer() {
             />
             Dry run
           </label>
+          {!dryRun && (
+            <label className="flex items-center gap-1.5 text-sm text-muted">
+              Run for
+              <input
+                type="number"
+                min={1}
+                max={86400}
+                step="any"
+                value={runFor}
+                onChange={(e) => setRunFor(e.target.value)}
+                placeholder={String(settings.data?.default_duration_s ?? 30)}
+                aria-label="Run duration in seconds"
+                className="w-16 rounded-lg border border-edge-2 bg-[var(--color-input-bg)] px-2 py-1 text-sm outline-none focus:border-[var(--color-input-focus-border)]"
+              />
+              s
+            </label>
+          )}
           <select
             value={strategy}
             onChange={(e) => setStrategy(e.target.value as Strategy)}
@@ -176,6 +200,7 @@ export function JobComposer() {
                     jobs: catalog.map((c) => c.job),
                     strategy,
                     dryRun,
+                    durationS,
                   })
                   const bad = res.results.filter((r) => r.infeasible).length
                   setNotice(

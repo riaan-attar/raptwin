@@ -145,6 +145,7 @@ export function State() {
           ['fabric.link.added / removed / update / updated / observe', 'A link is created, deleted, changed, or observed.'],
           ['fabric.reservation.created / released', 'Capacity is reserved or freed.'],
           ['fabric.plan.committed / cleared', 'A plan is produced (dry runs too; the event carries a dry_run flag), or plan history is cleared.'],
+          ['fabric.run.started / completed / cancelled / timer', 'A job run starts, ends (timer or Finish now), is cancelled, or has its timer changed. Ending frees the reservations.'],
           ['fabric.overrides.reset', 'All injected faults are cleared.'],
           ['fabric.job.saved / deleted', 'A job descriptor is saved or deleted.'],
           ['fabric.chaos.started / stopped / finished', 'A chaos scenario starts, is stopped, or completes.'],

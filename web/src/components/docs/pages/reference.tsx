@@ -9,7 +9,7 @@ export function ApiReference() {
   return (
     <DocPage
       title="API reference"
-      lead="All 29 routes of the Digital Twin API, with request bodies, results and ready-to-run examples."
+      lead="All 38 routes of the Digital Twin API, with request bodies, results and ready-to-run examples."
     >
       <H2 id="conventions">Conventions</H2>
       <UL
@@ -57,8 +57,16 @@ export function ApiReference() {
         head={['Method', 'Path', 'Request', 'Result']}
         mono={[0, 1]}
         rows={[
-          ['POST', '/plan', '{ job, strategy?, dry_run? }', 'A plan; see Planning for every field.'],
-          ['POST', '/plan_batch', '{ jobs: [...], strategy?, dry_run? }', '{ results: [plan, ...] }'],
+          ['POST', '/plan', '{ job, strategy?, dry_run?, duration_s?, auto_release? }', 'A plan; see Planning for every field. A committed plan also returns run when a timed run started.'],
+          ['POST', '/plan_batch', '{ jobs: [...], strategy?, dry_run?, duration_s?, auto_release? }', '{ results: [plan, ...] }'],
+          ['GET', '/runs', '?state=running|finished&limit=', '{ runs, settings, now_ms, reserved_by_running }'],
+          ['GET', '/runs/<id>', '-', 'One run with live stage status.'],
+          ['POST', '/runs/<id>/finish', '-', <>Ends the run now and frees its reservations {KEY}</>],
+          ['POST', '/runs/<id>/cancel', '-', <>Cancels the run and frees its reservations {KEY}</>],
+          ['POST', '/runs/<id>/timer', '{ remaining_s } or { extend_s }', <>The updated run {KEY}</>],
+          ['POST', '/runs/finish_all', '-', <>Ends every running run {KEY}</>],
+          ['GET', '/runs/settings', '-', '{ auto_release, default_duration_s }'],
+          ['POST', '/runs/settings', '{ auto_release?, default_duration_s? }', <>The new settings {KEY}</>],
           ['POST', '/release', '{ releases: [{ node, reservation_id }] }', '{ released: [{ node, reservation_id, released }] }'],
           ['GET', '/plans', '-', 'Recent plans, dry runs included (last 200, slimmed).'],
           ['DELETE', '/plans', '-', <>{'{ cleared: n }'} {KEY}</>],
@@ -90,6 +98,7 @@ export function ApiReference() {
           ['POST', '/chaos/start', '{ scenario?, speed? (default 10) }', <>Run status {KEY}</>],
           ['POST', '/chaos/stop', '-', <>{'{ stopped }'} {KEY}</>],
           ['POST', '/overrides/reset', '-', <>{'{ nodes_reset, links_reset, chaos_stopped }'} {KEY}</>],
+          ['POST', '/twin/restart', '{ confirm: "confirm" }', <>{'{ nodes, links, reservations_dropped, runs_dropped, plans_cleared, chaos_stopped }'} {KEY}</>],
           ['POST', '/blast_radius', '{ job | job_id, strategy?, depth?, branch?, max_sets?, deadline_ms? }', 'Minimal fault sets that break the job.'],
           ['POST', '/whatif', '{ changes, jobs?, job_limit?, strategy?, faults? }', 'Baseline versus variant report.'],
           ['GET', '/bundle', '?note=<text>', 'A zip download of an incident bundle.'],
@@ -141,6 +150,8 @@ export function Configuration() {
           ['FABRIC_API_HOST', '127.0.0.1', 'Bind address for python -m dt.api.'],
           ['FABRIC_API_PORT', '8080', 'Port for python -m dt.api.'],
           ['FABRIC_API_KEY', 'unset', 'When set, mutating routes require the X-API-Key header.'],
+          ['FABRIC_JOB_DEFAULT_SECONDS', '30', 'Default length of a job run timer (1 to 86400 s). Editable at runtime on the Events & Jobs tab.'],
+          ['FABRIC_JOB_AUTO_RELEASE', '1', 'When 1, every committed plan starts a timed run that frees its reservations. 0 holds them until released.'],
           ['FABRIC_JOBS_ROOT', 'jobs', 'Directory the job catalogue is read from and saved to.'],
           ['FABRIC_RL_STATE', 'sim/rl_state.json', 'Where the RL-Markov Q-table is persisted.'],
           ['FABRIC_BANDIT_STATE', 'sim/bandit_state.json', 'Where the bandit policy persists its statistics.'],
@@ -332,7 +343,7 @@ export function Deployment() {
       <H2 id="auth">API-key access control</H2>
       <P>
         Setting <Mono>FABRIC_API_KEY</Mono> gates the routes that change state: adding and deleting nodes, links and jobs,
-        clearing plans, starting and stopping chaos, and resetting faults. Everything else stays open, so planning and
+        clearing plans, starting and stopping chaos, resetting faults, and restarting the twin. Everything else stays open, so planning and
         what-if still work for anyone. The header is compared with a constant-time function.
       </P>
       <DocTable
@@ -360,7 +371,7 @@ export function Deployment() {
       <DocTable
         head={['Check', 'What it does']}
         rows={[
-          [<Mono key="p">pytest</Mono>, '166 automated tests across the API, planners, chaos tooling, auth, gate and tooling.'],
+          [<Mono key="p">pytest</Mono>, '171 automated tests across the API, planners, chaos tooling, auth, gate and tooling.'],
           [<Mono key="r">resilience-gate workflow</Mono>, 'Runs tools/ci_gate.py on pull requests that touch the twin, and uploads the report.'],
           [<Mono key="c">CodeQL workflow</Mono>, 'Static security analysis of the Python code (needs code scanning enabled on the repository).'],
           [<Mono key="t">npm run build</Mono>, 'Typechecks the frontend before bundling.'],

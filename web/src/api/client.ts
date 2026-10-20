@@ -10,6 +10,10 @@ import type {
   NodeDescriptor,
   ObservationPayload,
   PlanResult,
+  RestartResult,
+  RunSettings,
+  RunsResponse,
+  JobRun,
   Snapshot,
   Strategy,
   TopologyInfo,
@@ -87,17 +91,42 @@ export const api = {
     return request<EventsResponse>(`/events?${params}`)
   },
 
-  plan: (job: Job, strategy: Strategy, dryRun: boolean) =>
+  /** `durationS` sets how long a committed plan runs before its reservations are freed. */
+  plan: (job: Job, strategy: Strategy, dryRun: boolean, durationS?: number) =>
     request<PlanResult>('/plan', {
       method: 'POST',
-      body: JSON.stringify({ job, strategy, dry_run: dryRun }),
+      body: JSON.stringify({ job, strategy, dry_run: dryRun, duration_s: durationS }),
     }),
 
-  planBatch: (jobs: Job[], strategy: Strategy, dryRun: boolean) =>
+  planBatch: (jobs: Job[], strategy: Strategy, dryRun: boolean, durationS?: number) =>
     request<{ results: PlanResult[] }>('/plan_batch', {
       method: 'POST',
-      body: JSON.stringify({ jobs, strategy, dry_run: dryRun }),
+      body: JSON.stringify({ jobs, strategy, dry_run: dryRun, duration_s: durationS }),
     }),
+
+  // ---- timed runs --------------------------------------------------------
+
+  runs: (state: 'running' | 'finished' | 'all' = 'all', limit = 100) =>
+    request<RunsResponse>(`/runs?${new URLSearchParams({ state, limit: String(limit) })}`),
+
+  runSettings: () => request<RunSettings>('/runs/settings'),
+
+  updateRunSettings: (s: Partial<RunSettings>) =>
+    request<RunSettings>('/runs/settings', { method: 'POST', body: JSON.stringify(s) }),
+
+  finishRun: (id: string) => request<JobRun>(`/runs/${encodeURIComponent(id)}/finish`, { method: 'POST' }),
+
+  cancelRun: (id: string) => request<JobRun>(`/runs/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
+
+  /** Either set the time left from now (`remainingS`) or add to it (`extendS`). */
+  runTimer: (id: string, t: { remainingS?: number; extendS?: number }) =>
+    request<JobRun>(`/runs/${encodeURIComponent(id)}/timer`, {
+      method: 'POST',
+      body: JSON.stringify({ remaining_s: t.remainingS, extend_s: t.extendS }),
+    }),
+
+  finishAllRuns: () =>
+    request<{ finished: number; runs: JobRun[] }>('/runs/finish_all', { method: 'POST' }),
 
   observe: (payload: ObservationPayload) =>
     request<{ applied: boolean }>('/observe', {
@@ -184,6 +213,10 @@ export const api = {
     jobs?: string[]
   }) =>
     request<WhatIfReport>('/whatif', { method: 'POST', body: JSON.stringify(body) }),
+
+  /** Rebuilds the whole twin from disk. The server also requires the typed phrase. */
+  restartTwin: (confirm: string) =>
+    request<RestartResult>('/twin/restart', { method: 'POST', body: JSON.stringify({ confirm }) }),
 
   resetOverrides: () =>
     request<{ nodes_reset: number; links_reset: number; chaos_stopped: boolean }>(

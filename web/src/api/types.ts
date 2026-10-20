@@ -233,6 +233,8 @@ export interface PlanResult {
   cost_breakdown?: CostBreakdown | null
   co2_g?: number | null
   energy_kwh?: number | null
+  /** Set when a committed plan started a timed run (null for dry runs / auto-release off). */
+  run?: { run_id: string; started_ms: number; ends_ms: number; duration_s: number } | null
 }
 
 /** A stage of a job descriptor (jobs/*.yaml). */
@@ -493,4 +495,77 @@ export interface WhatIfReport {
     nodes: WhatIfDelta | null
   }
   verdict: string
+}
+
+export interface RestartResult {
+  nodes: number
+  links: number
+  reservations_dropped: number
+  plans_cleared: number
+  chaos_stopped: boolean
+  runs_dropped?: number
+}
+
+// ---- timed job runs (dt/runs.py) ------------------------------------------
+
+export type RunState = 'running' | 'completed' | 'cancelled'
+export type RunStageStatus = 'done' | 'active' | 'pending' | 'cancelled'
+
+export interface RunStage {
+  id: string
+  node: string
+  current_node: string
+  failed_over: boolean
+  format?: string | null
+  compute_ms: number
+  xfer_ms: number
+  /** Fraction of the timer this stage owns (shares add up to 1). */
+  share: number
+  status: RunStageStatus
+  resources: { cpu_cores: number; mem_gb: number; gpu_vram_gb: number }
+  node_down: boolean
+  node_derate: number
+}
+
+export interface JobRun {
+  run_id: string
+  job_id: string
+  strategy: string
+  state: RunState
+  end_reason: string | null
+  started_ms: number
+  ends_ms: number
+  finished_ms: number | null
+  duration_s: number
+  elapsed_s: number
+  remaining_s: number
+  progress: number
+  timer_changes: number
+  predicted: {
+    latency_ms?: number | null
+    deadline_ms?: number | null
+    energy_kj?: number | null
+    risk?: number | null
+    cost_total?: number | null
+    currency?: string | null
+    co2_g?: number | null
+  }
+  meets_deadline: boolean | null
+  stages: RunStage[]
+  reservations: { node: string; reservation_id: string; stage_id?: string; role?: string }[]
+  reservation_count: number
+  released: number | null
+  disrupted: boolean
+}
+
+export interface RunSettings {
+  auto_release: boolean
+  default_duration_s: number
+}
+
+export interface RunsResponse {
+  runs: JobRun[]
+  settings: RunSettings
+  now_ms: number
+  reserved_by_running: number
 }

@@ -975,6 +975,59 @@ class DTState:
             self._emit_event("fabric.overrides.reset", result)
             return result
 
+    def restart(self) -> Dict[str, int]:
+        """Rebuild the whole twin from disk, as if the process had just started.
+
+        Nodes and topology are reloaded from their files; every reservation, injected
+        fault, ad-hoc link and forecast history is dropped; overrides.json is emptied.
+        The event buffer is kept, so the restart itself shows up in the history.
+        """
+        with self._lock:
+            dropped = sum(
+                len((n.get("dyn") or {}).get("reservations") or {})
+                for n in self.nodes_by_name.values()
+            )
+            self._predictor = PredictiveAnalyzer()
+            self.nodes_by_name = {}
+            self.links_by_key = {}
+            self._topology_link_specs = {}
+            self._nodes_fingerprint = {}
+            self._res_seq = 1
+
+            empty = {"nodes": {}, "links": {}}
+            self._overrides = copy.deepcopy(empty)
+            self._overrides_applied = copy.deepcopy(empty)
+            try:
+                self.overrides_path.parent.mkdir(parents=True, exist_ok=True)
+                self.overrides_path.write_text(json.dumps(empty, indent=2), encoding="utf-8")
+                self._overrides_mtime = self.overrides_path.stat().st_mtime
+            except Exception as exc:
+                print(f"[state] WARN: failed to clear overrides file: {exc}")
+
+            self._load_nodes_locked(preserve_dyn=False)
+            self._load_topology_locked()
+            self._invalidate_snapshot_locked()
+            result = {
+                "nodes": len(self.nodes_by_name),
+                "links": len(self.links_by_key),
+                "reservations_dropped": dropped,
+            }
+            self._emit_event("fabric.twin.restarted", result)
+            return result
+
+    def node_status(self, name: str) -> Optional[Dict[str, Any]]:
+        """Cheap read-only health of one node (None if unknown)."""
+        with self._lock:
+            node = self.nodes_by_name.get(name)
+            if not node:
+                return None
+            dyn = node.get("dyn") or {}
+            return {
+                "down": bool(dyn.get("down")),
+                "thermal_derate": safe_float(dyn.get("thermal_derate"), 0.0),
+                "reliability": safe_float(dyn.get("reliability"), 1.0),
+            }
+
     def node_headroom(self, name: str) -> Optional[Dict[str, float]]:
         """Return instantaneous capacity/free headroom metrics for a node."""
 

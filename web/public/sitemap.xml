@@ -28,6 +28,12 @@
     <priority>0.85</priority>
   </url>
   <url>
+    <loc>https://raptwin.seloraos.online/#events</loc>
+    <lastmod>2026-10-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
     <loc>https://raptwin.seloraos.online/#chaos</loc>
     <lastmod>2026-10-01</lastmod>
     <changefreq>weekly</changefreq>

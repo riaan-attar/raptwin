@@ -44,6 +44,7 @@ properties:
         # Overall objectives
         qos: { enum: [best_effort, standard, high, critical], default: standard }
         deadline_ms: { type: number, minimum: 0, description: "End-to-end soft deadline" }
+        duration_s: { type: number, minimum: 1, maximum: 86400, description: "How long a committed run holds its reservations before they are freed (default set by the API)." }
         latency_budget_ms:
           type: object
           description: "Optional per-phase budgets to guide placement."
