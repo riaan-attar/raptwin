@@ -43,6 +43,22 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Python's json module writes Infinity and NaN, which JSON.parse rejects. Infeasible plans
+ * carry latency_ms = Infinity, so map those bare tokens to 1e999 (parses as Infinity) and
+ * null before parsing. Only tokens in value position are touched, never text inside strings.
+ */
+function parseLenient<T>(text: string): T {
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    const fixed = text.replace(/([:[,]\s*)(-?Infinity|NaN)(?=\s*[,}\]])/g, (_m, pre: string, tok: string) =>
+      `${pre}${tok === 'NaN' ? 'null' : tok.startsWith('-') ? '-1e999' : '1e999'}`,
+    )
+    return JSON.parse(fixed) as T
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {}
   if (init?.body) headers['Content-Type'] = 'application/json'
@@ -62,7 +78,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   let body: ApiEnvelope<T> | null = null
   try {
-    body = (await res.json()) as ApiEnvelope<T>
+    body = parseLenient<ApiEnvelope<T>>(await res.text())
   } catch {
     throw new ApiError(`API returned a non-JSON response (HTTP ${res.status})`, res.status)
   }
