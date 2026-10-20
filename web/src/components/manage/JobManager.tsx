@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useDeleteJob, useJobs, usePlanBatch, usePlanJob, useSaveJob } from '../../api/hooks'
 import { STRATEGIES, WORKLOAD_FORMATS, type Job, type JobCatalogEntry, type JobStage } from '../../api/types'
 import { NAME_RE } from '../../lib/descriptor'
+import { useCatalogPick } from '../../lib/useCatalogPick'
 import { cn, fmtMs } from '../../lib/format'
 import { Button, Card, Field, Mono, Notice, NumberInput, inputCls } from '../ui/primitives'
 
@@ -35,11 +36,19 @@ export function JobManager() {
   const [batchStrategy, setBatchStrategy] = useState<(typeof STRATEGIES)[number]['value']>('greedy')
   const [batchDry, setBatchDry] = useState(true)
 
+  const catalog = useMemo(() => jobs.data ?? [], [jobs.data])
+  const ids = useMemo(() => new Set(catalog.map((e) => e.id)), [catalog])
+  const { files, fileFilter, visible, included, excluded, setFile, setIncluded } = useCatalogPick(catalog)
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return q ? visible.filter(({ item }) => `${item.id} ${item.file}`.toLowerCase().includes(q)) : visible
+  }, [visible, query])
+
   async function planCatalog() {
     setNotice(null)
     try {
       const res = await planBatch.mutateAsync({
-        jobs: (jobs.data ?? []).map((c) => c.job),
+        jobs: included.map(({ item }) => item.job),
         strategy: batchStrategy,
         dryRun: batchDry,
       })
@@ -52,13 +61,6 @@ export function JobManager() {
       setNotice({ tone: 'err', text: (e as Error).message })
     }
   }
-
-  const catalog = useMemo(() => jobs.data ?? [], [jobs.data])
-  const ids = useMemo(() => new Set(catalog.map((e) => e.id)), [catalog])
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return q ? catalog.filter((e) => `${e.id} ${e.file}`.toLowerCase().includes(q)) : catalog
-  }, [catalog, query])
 
   const current: JobCatalogEntry | undefined =
     selection?.kind === 'existing' ? catalog.find((e) => e.id === selection.id) : undefined
@@ -87,8 +89,12 @@ export function JobManager() {
             <input type="checkbox" checked={batchDry} onChange={(e) => setBatchDry(e.target.checked)} className="accent-accent" />
             Dry run
           </label>
-          <Button disabled={planBatch.isPending || catalog.length === 0} onClick={() => void planCatalog()}>
-            {planBatch.isPending ? 'Planning…' : 'Plan entire catalog'}
+          <Button disabled={planBatch.isPending || included.length === 0} onClick={() => void planCatalog()}>
+            {planBatch.isPending
+              ? 'Planning…'
+              : included.length === visible.length && !fileFilter
+                ? 'Plan entire catalog'
+                : `Plan ${included.length} ticked job${included.length === 1 ? '' : 's'}`}
           </Button>
           <Button
             variant="primary"
@@ -104,6 +110,38 @@ export function JobManager() {
     >
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(200px,260px)_1fr]">
         <div className="flex min-w-0 flex-col gap-2">
+          <select
+            value={fileFilter}
+            onChange={(e) => setFile(e.target.value)}
+            aria-label="Catalog file"
+            className={inputCls}
+          >
+            <option value="">All catalogs ({catalog.length})</option>
+            {files.map(([f, n]) => (
+              <option key={f} value={f}>
+                {f} ({n})
+              </option>
+            ))}
+          </select>
+          <div className="text-[11px] text-muted-2">
+            {included.length} of {visible.length} ticked for batch
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              className="px-2 py-1 text-xs"
+              disabled={included.length === visible.length}
+              onClick={() => setIncluded(visible.map(({ item }) => item.id), true)}
+            >
+              Select all
+            </Button>
+            <Button
+              className="px-2 py-1 text-xs"
+              disabled={included.length === 0}
+              onClick={() => setIncluded(visible.map(({ item }) => item.id), false)}
+            >
+              Select none
+            </Button>
+          </div>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -111,37 +149,51 @@ export function JobManager() {
             aria-label="Search jobs"
             className={inputCls}
           />
-          {query && (
-            <Button variant="ghost" className="self-start px-2 py-1 text-xs" onClick={() => setQuery('')}>
-              Reset filter
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            className="self-start px-2 py-1 text-xs"
+            disabled={!query && !fileFilter}
+            onClick={() => {
+              setQuery('')
+              setFile('')
+            }}
+          >
+            Reset filter
+          </Button>
           <div className="max-h-[560px] overflow-auto rounded-[10px] border border-[var(--color-panel2-border)] bg-panel-2 p-2">
             {jobs.isLoading && <p className="p-2 text-xs text-muted-2">Loading job library…</p>}
             {!jobs.isLoading && filtered.length === 0 && (
               <p className="p-2 text-xs text-muted-2">No jobs found.</p>
             )}
-            {filtered.map((entry) => {
+            {filtered.map(({ item: entry }) => {
               const active = effectiveSelection?.kind === 'existing' && effectiveSelection.id === entry.id
               return (
-                <button
-                  key={`${entry.file}#${entry.index}`}
-                  onClick={() => {
-                    setNotice(null)
-                    setSelection({ kind: 'existing', id: entry.id })
-                  }}
-                  className={cn(
-                    'mb-1.5 w-full cursor-pointer rounded-lg border px-2.5 py-1.5 text-left text-sm transition-colors',
-                    active
-                      ? 'border-[var(--color-chip-info-border)] bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)]'
-                      : 'border-[var(--color-chip2-border)] bg-[var(--color-chip2-bg)] text-[var(--color-chip2-text)] hover:border-[var(--color-btn-border-hover)]',
-                  )}
-                >
-                  <div className="truncate font-semibold">{entry.id}</div>
-                  <div className="text-[11px] text-muted-2">
-                    {entry.file} · {entry.job.stages?.length ?? 0} stages
-                  </div>
-                </button>
+                <div key={`${entry.file}#${entry.index}`} className="mb-1.5 flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={!excluded.has(entry.id)}
+                    onChange={(e) => setIncluded([entry.id], e.target.checked)}
+                    aria-label={`Include ${entry.id} in batch`}
+                    className="h-4 w-4 shrink-0 cursor-pointer accent-[var(--color-accent-strong)]"
+                  />
+                  <button
+                    onClick={() => {
+                      setNotice(null)
+                      setSelection({ kind: 'existing', id: entry.id })
+                    }}
+                    className={cn(
+                      'min-w-0 flex-1 cursor-pointer rounded-lg border px-2.5 py-1.5 text-left text-sm transition-colors',
+                      active
+                        ? 'border-[var(--color-chip-info-border)] bg-[var(--color-chip-info-bg)] text-[var(--color-chip-info-text)]'
+                        : 'border-[var(--color-chip2-border)] bg-[var(--color-chip2-bg)] text-[var(--color-chip2-text)] hover:border-[var(--color-btn-border-hover)]',
+                    )}
+                  >
+                    <div className="truncate font-semibold">{entry.id}</div>
+                    <div className="truncate text-[11px] text-muted-2">
+                      {entry.file} · {entry.job.stages?.length ?? 0} stages
+                    </div>
+                  </button>
+                </div>
               )
             })}
           </div>
@@ -166,6 +218,8 @@ export function JobManager() {
               entry={current}
               initial={current ? current.job : blankJob(ids)}
               existingIds={ids}
+              files={files.map(([f]) => f)}
+              defaultFile={fileFilter}
               setNotice={setNotice}
               onSaved={(id) => setSelection({ kind: 'existing', id })}
               onDeleted={() => setSelection(null)}
@@ -181,6 +235,8 @@ function JobEditor({
   entry,
   initial,
   existingIds,
+  files,
+  defaultFile,
   setNotice,
   onSaved,
   onDeleted,
@@ -188,6 +244,8 @@ function JobEditor({
   entry?: JobCatalogEntry
   initial: Job
   existingIds: Set<string>
+  files: string[]
+  defaultFile: string
   setNotice: (notice: JobNotice) => void
   onSaved: (id: string) => void
   onDeleted: () => void
@@ -198,6 +256,9 @@ function JobEditor({
   const [draft, setDraft] = useState<Job>(() => structuredClone(initial))
   const [mode, setMode] = useState<'form' | 'json'>('form')
   const [jsonText, setJsonText] = useState('')
+  // '' saves a new job as its own jobs/<id>.yaml; '__new__' asks for a file name.
+  const [target, setTarget] = useState(defaultFile)
+  const [newFile, setNewFile] = useState('')
 
   const originalId = entry?.id
 
@@ -242,7 +303,9 @@ function JobEditor({
     const p = problem(job)
     if (p) return setNotice({ tone: 'err', text: p })
     try {
-      const res = await save.mutateAsync({ job, originalId })
+      const file = entry ? undefined : target === '__new__' ? newFile.trim() : target || undefined
+      if (!entry && target === '__new__' && !file) return setNotice({ tone: 'err', text: 'Enter a file name for the new catalogue.' })
+      const res = await save.mutateAsync({ job, originalId, file })
       setNotice({ tone: 'ok', text: `${res.created ? 'Created' : 'Saved'} ${res.id} in jobs/${res.file}.` })
       onSaved(res.id)
     } catch (e) {
@@ -298,7 +361,32 @@ function JobEditor({
               Editing <Mono>{entry.id}</Mono> in <Mono>jobs/{entry.file}</Mono>
             </>
           ) : (
-            'New job — saved as jobs/<id>.yaml'
+            <span className="flex flex-wrap items-center gap-2">
+              New job — save to
+              <select
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                aria-label="Save to catalogue"
+                className={`${inputCls} w-auto`}
+              >
+                <option value="">its own file (jobs/&lt;id&gt;.yaml)</option>
+                {files.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+                <option value="__new__">a new catalogue file…</option>
+              </select>
+              {target === '__new__' && (
+                <input
+                  value={newFile}
+                  onChange={(e) => setNewFile(e.target.value)}
+                  placeholder="my_jobs.yaml"
+                  aria-label="New catalogue file name"
+                  className={`${inputCls} w-40`}
+                />
+              )}
+            </span>
           )}
         </div>
         <div className="inline-flex rounded-lg border border-edge-2 p-0.5" role="tablist">

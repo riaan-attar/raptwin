@@ -2,23 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useJobs, usePlanBatch, usePlanJob, useRunSettings } from '../api/hooks'
 import { STRATEGIES, type Job, type Strategy } from '../api/types'
 import { makeDemoJob } from '../lib/demoJob'
+import { useCatalogPick } from '../lib/useCatalogPick'
 import { cn, fmtLatency } from '../lib/format'
 import { Button, Card, Mono } from './ui/primitives'
-
-const PICK_KEY = 'raptwin.catalog-pick'
-
-/** Which catalog file to show and which jobs are ticked for batch planning; a per-browser convenience. */
-function loadPick(): { file: string; excluded: string[] } {
-  try {
-    const v = JSON.parse(localStorage.getItem(PICK_KEY) ?? '{}') as { file?: unknown; excluded?: unknown }
-    return {
-      file: typeof v.file === 'string' ? v.file : '',
-      excluded: Array.isArray(v.excluded) ? v.excluded.filter((x): x is string => typeof x === 'string') : [],
-    }
-  } catch {
-    return { file: '', excluded: [] }
-  }
-}
 
 export function JobComposer() {
   const jobs = useJobs()
@@ -26,7 +12,6 @@ export function JobComposer() {
   const planBatch = usePlanBatch()
 
   const [selected, setSelected] = useState(0)
-  const [pick, setPick] = useState(loadPick)
   const [strategy, setStrategy] = useState<Strategy>('greedy')
   const [dryRun, setDryRun] = useState(true)
   const [runFor, setRunFor] = useState('')
@@ -38,33 +23,7 @@ export function JobComposer() {
   const catalog = useMemo(() => jobs.data ?? [], [jobs.data])
   const entry = catalog[selected]
 
-  const files = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const c of catalog) counts.set(c.file, (counts.get(c.file) ?? 0) + 1)
-    return [...counts.entries()]
-  }, [catalog])
-  // A remembered file that no longer exists falls back to "all" instead of an empty list.
-  const fileFilter = files.some(([f]) => f === pick.file) ? pick.file : ''
-  const visible = useMemo(
-    () => catalog.map((item, idx) => ({ item, idx })).filter(({ item }) => !fileFilter || item.file === fileFilter),
-    [catalog, fileFilter],
-  )
-  const excluded = useMemo(() => new Set(pick.excluded), [pick.excluded])
-  const included = visible.filter(({ item }) => !excluded.has(item.id))
-
-  function updatePick(next: { file: string; excluded: string[] }) {
-    setPick(next)
-    try {
-      localStorage.setItem(PICK_KEY, JSON.stringify(next))
-    } catch {
-      /* private window or blocked storage: the choice just won't be remembered */
-    }
-  }
-  const setIncluded = (ids: string[], on: boolean) =>
-    updatePick({
-      file: fileFilter,
-      excluded: on ? pick.excluded.filter((x) => !ids.includes(x)) : [...new Set([...pick.excluded, ...ids])],
-    })
+  const { files, fileFilter, visible, included, excluded, setFile, setIncluded } = useCatalogPick(catalog)
 
   // Seed the editor with the first catalog entry once it loads.
   useEffect(() => {
@@ -170,7 +129,7 @@ export function JobComposer() {
         <div className="flex min-w-0 flex-col gap-2">
           <select
             value={fileFilter}
-            onChange={(e) => updatePick({ file: e.target.value, excluded: pick.excluded })}
+            onChange={(e) => setFile(e.target.value)}
             aria-label="Catalog file"
             className="rounded-lg border border-edge-2 bg-[var(--color-input-bg)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-input-focus-border)]"
           >

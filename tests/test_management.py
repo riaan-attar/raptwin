@@ -270,3 +270,33 @@ def test_chaos_run_and_reset(client, state):
     res = client.post("/overrides/reset")
     assert res.status_code == 200
     assert state.get_node("ws-014")["dyn"]["down"] is False
+
+
+def _job(job_id):
+    return {"id": job_id, "deadline_ms": 5000, "stages": [{"id": "s1", "type": "io", "size_mb": 1, "resources": {"cpu_cores": 1, "mem_gb": 1}}]}
+
+
+def test_save_new_job_into_existing_catalogue_file(client, fabric):
+    res = client.post("/jobs", json={"job": _job("added-here"), "file": "jobs_10.yaml"})
+    assert res.status_code == 200 and res.get_json()["data"]["file"] == "jobs_10.yaml"
+    text = (fabric / "jobs" / "jobs_10.yaml").read_text()
+    assert text.startswith("# jobs/jobs_10.yaml")  # header kept
+    assert "added-here" in text and "job-vision-small" in text
+    catalog = client.get("/jobs").get_json()["data"]
+    assert [e["file"] for e in catalog if e["id"] == "added-here"] == ["jobs_10.yaml"]
+    assert not (fabric / "jobs" / "added-here.yaml").exists()
+
+
+def test_save_new_job_creates_a_new_catalogue_file(client, fabric):
+    res = client.post("/jobs", json={"job": _job("fresh-1"), "file": "my_set"})
+    assert res.get_json()["data"]["file"] == "my_set.yaml"
+    client.post("/jobs", json={"job": _job("fresh-2"), "file": "my_set.yaml"})
+    entries = [e for e in client.get("/jobs").get_json()["data"] if e["file"] == "my_set.yaml"]
+    assert [e["id"] for e in entries] == ["fresh-1", "fresh-2"]
+
+
+@pytest.mark.parametrize("bad", ["../escape.yaml", "a/b.yaml", "..", ".hidden.yaml", "x y.yaml", "/etc/passwd"])
+def test_catalogue_file_name_must_be_plain(client, fabric, bad):
+    res = client.post("/jobs", json={"job": _job("nope"), "file": bad})
+    assert res.status_code == 400
+    assert not list(fabric.glob("**/escape.yaml"))

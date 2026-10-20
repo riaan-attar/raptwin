@@ -184,10 +184,10 @@ export const api = {
   deleteLink: (key: string) =>
     request<{ key: string }>(`/links?${new URLSearchParams({ key })}`, { method: 'DELETE' }),
 
-  saveJob: (job: Job, originalId?: string) =>
+  saveJob: (job: Job, originalId?: string, file?: string) =>
     request<{ id: string; file: string; created: boolean }>('/jobs', {
       method: 'POST',
-      body: JSON.stringify({ job, original_id: originalId }),
+      body: JSON.stringify({ job, original_id: originalId, file }),
     }),
 
   deleteJob: (id: string) =>

@@ -88,7 +88,10 @@ export function Dashboard() {
       <H2 id="jobs-tab">Job Library tab</H2>
       <P>
         The job library under <Mono>jobs/*.yaml</Mono>, used by the planner and the Dashboard composer. Create, edit, delete
-        and plan jobs here.
+        and plan jobs here. Pick a catalogue file in the dropdown to see only its jobs, tick the jobs you want, and use{' '}
+        <b>Select all</b> / <b>Select none</b>; the batch button then plans just the ticked jobs. When you create a job, choose
+        which catalogue file it is saved into (an existing one, or a new file name). Search and the catalogue filter work
+        together, and <b>Reset filter</b> clears both.
       </P>
       <H2 id="events-tab">Events &amp; Jobs tab</H2>
       <P>

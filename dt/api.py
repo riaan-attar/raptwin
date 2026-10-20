@@ -67,6 +67,7 @@ import argparse
 import json
 import math
 import os
+import re
 import threading
 import time
 from collections import deque
@@ -428,6 +429,16 @@ def _write_job_file(
         out = {"jobs": jobs}
     body = yaml.safe_dump(out, sort_keys=False, allow_unicode=True)
     path.write_text((header + "\n\n" if header else "") + body, encoding="utf-8")
+
+
+def _catalog_filename(value: Any) -> str | None:
+    """A safe jobs/ file name (adds .yaml when missing), or None if it is not a plain name."""
+    name = str(value).strip()
+    if not name:
+        return None
+    if not name.lower().endswith((".yaml", ".yml")):
+        name += ".yaml"
+    return name if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.ya?ml", name, re.IGNORECASE) else None
 
 
 def _locate_job(job_id: str) -> tuple[Path, int] | None:
@@ -953,10 +964,23 @@ def save_job():
             else:
                 root = _jobs_root()
                 root.mkdir(parents=True, exist_ok=True)
-                path = root / f"{job_id}.yaml"
-                if path.exists():
-                    return _err(f"jobs/{path.name} already exists", status=409)
-                raw, jobs, header = job, [job], ""
+                target = body.get("file")
+                if target:
+                    name = _catalog_filename(target)
+                    if not name:
+                        return _err("file must be a plain name like my_jobs.yaml")
+                    path = root / name
+                    if path.exists():
+                        # Add to an existing catalog file, keeping its comment header.
+                        raw, jobs, header = _read_job_file(path)
+                        jobs = [*jobs, job]
+                    else:
+                        raw, jobs, header = {"version": "0.1.0", "jobs": [job]}, [job], ""
+                else:
+                    path = root / f"{job_id}.yaml"
+                    if path.exists():
+                        return _err(f"jobs/{path.name} already exists", status=409)
+                    raw, jobs, header = job, [job], ""
             _write_job_file(path, raw, jobs, header)
         except Exception:
             app.logger.exception("/jobs save failed")

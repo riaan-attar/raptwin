@@ -228,8 +228,8 @@ export function useDeleteLink() {
 export function useSaveJob() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ job, originalId }: { job: Job; originalId?: string }) =>
-      api.saveJob(job, originalId),
+    mutationFn: ({ job, originalId, file }: { job: Job; originalId?: string; file?: string }) =>
+      api.saveJob(job, originalId, file),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.jobs })
     },
