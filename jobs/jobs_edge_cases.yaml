@@ -1,0 +1,875 @@
+# jobs/jobs_edge_cases.yaml
+# Edge cases for testing the system: jobs that cannot be placed (infeasible), jobs that plan
+# but miss their deadline, extreme sizes, accelerator-only formats, and custom run timers.
+# Each description says what to expect. The infeasible ones are the point: use them to check
+# error handling, the infeasible rows in Recent Plans, and batches with mixed outcomes.
+
+version: 0.1.0
+jobs:
+- id: edge-cpu-too-big
+  description: 'INFEASIBLE: one stage asks for more CPU cores than any node has (max is 128).'
+  deadline_ms: 10000
+  stages:
+  - id: s1_ingest
+    type: io
+    size_mb: 50
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s2_monster
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 512
+      mem_gb: 8
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-mem-too-big
+  description: 'INFEASIBLE: asks for 4 TB of memory (largest node has 1 TB).'
+  deadline_ms: 10000
+  stages:
+  - id: s1_load
+    type: analytics
+    size_mb: 500
+    resources:
+      cpu_cores: 4
+      mem_gb: 4096
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-vram-too-big
+  description: 'INFEASIBLE: asks for 1 TB of GPU memory (largest node has 192 GB).'
+  deadline_ms: 10000
+  stages:
+  - id: s1_prep
+    type: preproc
+    size_mb: 50
+    resources:
+      cpu_cores: 2
+      mem_gb: 2
+    allowed_formats:
+    - native
+    - wasm
+  - id: s2_giant_model
+    type: mlp
+    size_mb: 200
+    resources:
+      cpu_cores: 8
+      mem_gb: 16
+      gpu_vram_gb: 1024
+    allowed_formats:
+    - cuda
+    - native
+- id: edge-conflicting-formats
+  description: 'Allows only asic yet also lists it as disallowed. The planner ignores disallowed_formats, so it
+    still lands on the single asic node: documents that gap.'
+  deadline_ms: 10000
+  stages:
+  - id: s1_exotic
+    type: cv
+    size_mb: 50
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - asic
+    disallowed_formats:
+    - asic
+- id: edge-cuda-no-gpu-fallback
+  description: Needs cuda only with 80 GB VRAM, so only a few big GPU hosts qualify.
+  deadline_ms: 12000
+  stages:
+  - id: s1_train
+    type: mlp
+    size_mb: 300
+    resources:
+      cpu_cores: 8
+      mem_gb: 32
+      gpu_vram_gb: 80
+    allowed_formats:
+    - cuda
+- id: edge-asic-only
+  description: 'Edge case: only one node in the fabric supports asic, so everything lands on it.'
+  deadline_ms: 12000
+  stages:
+  - id: s1_asic_a
+    type: cv
+    size_mb: 80
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - asic
+  - id: s2_asic_b
+    type: cv
+    size_mb: 80
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - asic
+- id: edge-fpga-only
+  description: 'Edge case: only four nodes support fpga.'
+  deadline_ms: 12000
+  stages:
+  - id: s1_fpga
+    type: analytics
+    size_mb: 60
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - fpga
+  - id: s2_fpga
+    type: analytics
+    size_mb: 60
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - fpga
+  - id: s3_fpga
+    type: analytics
+    size_mb: 60
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - fpga
+  - id: s4_fpga
+    type: analytics
+    size_mb: 60
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - fpga
+- id: edge-npu-pipeline
+  description: 'Edge case: stages that need an NPU (ten nodes), then a native finish.'
+  deadline_ms: 12000
+  stages:
+  - id: s1_npu_a
+    type: cv
+    size_mb: 60
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - npu
+  - id: s2_npu_b
+    type: nlp
+    size_mb: 60
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - npu
+  - id: s3_finish
+    type: io
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-impossible-deadline
+  description: Feasible placement but a 1 ms deadline, so it plans and then misses the SLA.
+  deadline_ms: 1
+  stages:
+  - id: s1_a
+    type: preproc
+    size_mb: 100
+    resources:
+      cpu_cores: 2
+      mem_gb: 2
+    allowed_formats:
+    - native
+    - wasm
+  - id: s2_b
+    type: analytics
+    size_mb: 200
+    resources:
+      cpu_cores: 4
+      mem_gb: 4
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-zero-deadline
+  description: 'Deadline 0 means no deadline: should always count as meeting it.'
+  deadline_ms: 0
+  stages:
+  - id: s1_only
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 2
+      mem_gb: 2
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-single-tiny-stage
+  description: 'Smallest possible job: one stage, no data, minimal resources.'
+  deadline_ms: 5000
+  stages:
+  - id: s1_noop
+    type: io
+    size_mb: 0
+    resources:
+      cpu_cores: 0.1
+      mem_gb: 0.1
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-no-resources
+  description: Stage with no resources block at all (planner defaults).
+  deadline_ms: 5000
+  stages:
+  - id: s1_bare
+    type: io
+    size_mb: 10
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-huge-transfer
+  description: Moves 50 GB between stages, so network transfer dominates the latency.
+  deadline_ms: 30000
+  stages:
+  - id: s1_export
+    type: io
+    size_mb: 50000
+    resources:
+      cpu_cores: 2
+      mem_gb: 4
+    allowed_formats:
+    - native
+    - wasm
+  - id: s2_import
+    type: io
+    size_mb: 50000
+    resources:
+      cpu_cores: 2
+      mem_gb: 4
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-long-chain-40
+  description: 'Forty tiny stages in a row: stresses plan size, the stage timeline and the planners.'
+  deadline_ms: 60000
+  stages:
+  - id: s01_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s02_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s03_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s04_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s05_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s06_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s07_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s08_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s09_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s10_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s11_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s12_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s13_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s14_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s15_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s16_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s17_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s18_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s19_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s20_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s21_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s22_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s23_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s24_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s25_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s26_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s27_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s28_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s29_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s30_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s31_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s32_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s33_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s34_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s35_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s36_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s37_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s38_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s39_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s40_step
+    type: preproc
+    size_mb: 20
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-cpu-hog-sweep
+  description: 'Ten stages of 24 cores each: forces use of the big hosts and spill over to more of them.'
+  deadline_ms: 30000
+  stages:
+  - id: s01_hog
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 24
+      mem_gb: 48
+    allowed_formats:
+    - native
+    - wasm
+  - id: s02_hog
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 24
+      mem_gb: 48
+    allowed_formats:
+    - native
+    - wasm
+  - id: s03_hog
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 24
+      mem_gb: 48
+    allowed_formats:
+    - native
+    - wasm
+  - id: s04_hog
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 24
+      mem_gb: 48
+    allowed_formats:
+    - native
+    - wasm
+  - id: s05_hog
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 24
+      mem_gb: 48
+    allowed_formats:
+    - native
+    - wasm
+  - id: s06_hog
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 24
+      mem_gb: 48
+    allowed_formats:
+    - native
+    - wasm
+  - id: s07_hog
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 24
+      mem_gb: 48
+    allowed_formats:
+    - native
+    - wasm
+  - id: s08_hog
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 24
+      mem_gb: 48
+    allowed_formats:
+    - native
+    - wasm
+  - id: s09_hog
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 24
+      mem_gb: 48
+    allowed_formats:
+    - native
+    - wasm
+  - id: s10_hog
+    type: analytics
+    size_mb: 100
+    resources:
+      cpu_cores: 24
+      mem_gb: 48
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-big-hosts-only
+  description: Needs 90 cores and 250 GB per stage, so only HPC nodes and the largest servers qualify.
+  deadline_ms: 40000
+  stages:
+  - id: s1_hpc
+    type: analytics
+    size_mb: 300
+    resources:
+      cpu_cores: 90
+      mem_gb: 250
+    allowed_formats:
+    - native
+    - wasm
+  - id: s2_hpc
+    type: analytics
+    size_mb: 300
+    resources:
+      cpu_cores: 90
+      mem_gb: 250
+    allowed_formats:
+    - native
+    - wasm
+  - id: s3_hpc
+    type: analytics
+    size_mb: 300
+    resources:
+      cpu_cores: 90
+      mem_gb: 250
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-oversubscribed-hpc
+  description: 'INFEASIBLE when committed: four stages that each need 120 cores and 900 GB, more than the fabric
+    can host at once.'
+  deadline_ms: 40000
+  stages:
+  - id: s1_hpc
+    type: analytics
+    size_mb: 300
+    resources:
+      cpu_cores: 120
+      mem_gb: 900
+    allowed_formats:
+    - native
+    - wasm
+  - id: s2_hpc
+    type: analytics
+    size_mb: 300
+    resources:
+      cpu_cores: 120
+      mem_gb: 900
+    allowed_formats:
+    - native
+    - wasm
+  - id: s3_hpc
+    type: analytics
+    size_mb: 300
+    resources:
+      cpu_cores: 120
+      mem_gb: 900
+    allowed_formats:
+    - native
+    - wasm
+  - id: s4_hpc
+    type: analytics
+    size_mb: 300
+    resources:
+      cpu_cores: 120
+      mem_gb: 900
+    allowed_formats:
+    - native
+    - wasm
+- id: edge-short-run-timer
+  description: 'Valid job with duration_s 3: its committed run frees its reservations after 3 s.'
+  deadline_ms: 8000
+  stages:
+  - id: s1_quick
+    type: io
+    size_mb: 30
+    resources:
+      cpu_cores: 2
+      mem_gb: 2
+    allowed_formats:
+    - native
+    - wasm
+  - id: s2_quick
+    type: preproc
+    size_mb: 30
+    resources:
+      cpu_cores: 2
+      mem_gb: 2
+    allowed_formats:
+    - native
+    - wasm
+  duration_s: 3
+- id: edge-long-run-timer
+  description: 'Valid job with duration_s 600: holds its reservations for ten minutes unless finished.'
+  deadline_ms: 8000
+  stages:
+  - id: s1_slow
+    type: io
+    size_mb: 30
+    resources:
+      cpu_cores: 2
+      mem_gb: 2
+    allowed_formats:
+    - native
+    - wasm
+  - id: s2_slow
+    type: preproc
+    size_mb: 30
+    resources:
+      cpu_cores: 2
+      mem_gb: 2
+    allowed_formats:
+    - native
+    - wasm
+  duration_s: 600
+- id: edge-mixed-feasible-infeasible
+  description: 'INFEASIBLE: the first three stages are fine, the last one needs an impossible 2 TB of memory.'
+  deadline_ms: 15000
+  stages:
+  - id: s1_ok
+    type: io
+    size_mb: 50
+    resources:
+      cpu_cores: 1
+      mem_gb: 1
+    allowed_formats:
+    - native
+    - wasm
+  - id: s2_ok
+    type: preproc
+    size_mb: 50
+    resources:
+      cpu_cores: 2
+      mem_gb: 2
+    allowed_formats:
+    - native
+    - wasm
+  - id: s3_ok
+    type: analytics
+    size_mb: 50
+    resources:
+      cpu_cores: 4
+      mem_gb: 4
+    allowed_formats:
+    - native
+    - wasm
+  - id: s4_never
+    type: analytics
+    size_mb: 50
+    resources:
+      cpu_cores: 4
+      mem_gb: 2048
+    allowed_formats:
+    - native
+    - wasm

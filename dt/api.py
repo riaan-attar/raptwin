@@ -65,6 +65,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import threading
 import time
@@ -234,12 +235,27 @@ app = Flask(__name__)
 # -----------------------------------
 
 
+def _json_safe(obj: Any) -> Any:
+    """Replace inf/-inf/NaN with None, because JSON has no spelling for them.
+
+    Infeasible plans carry latency_ms = inf; json would write the bare token
+    `Infinity`, which browsers, jq and most clients reject outright.
+    """
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
+
+
 def _ok(data: Any, status: int = 200):
-    return jsonify({"ok": True, "data": data}), status
+    return jsonify({"ok": True, "data": _json_safe(data)}), status
 
 
 def _err(msg: str, status: int = 400, **extra):
-    return jsonify({"ok": False, "error": msg, **extra}), status
+    return jsonify({"ok": False, "error": msg, **_json_safe(extra)}), status
 
 
 # -----------------------------------
@@ -656,7 +672,7 @@ def stream():
                     # Comment frame keeps proxies/browsers from timing out.
                     yield ": keepalive\n\n"
                     continue
-                payload = json.dumps(evt, default=str)
+                payload = json.dumps(_json_safe(evt), default=str)
                 # Deliberately no "event:" line: named SSE events bypass
                 # EventSource.onmessage, so a client would silently miss any
                 # type it had not explicitly subscribed to. The CloudEvent

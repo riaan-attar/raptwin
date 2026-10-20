@@ -1,5 +1,5 @@
 import type { PlanResult, PlanStage } from '../api/types'
-import { fmt, fmtCo2, fmtMoney, fmtPct } from '../lib/format'
+import { fmt, fmtCo2, fmtLatency, fmtMoney, fmtPct } from '../lib/format'
 import { Badge, Card, Mono, Tag } from './ui/primitives'
 
 function StageCard({ stage }: { stage: PlanStage }) {
@@ -16,7 +16,7 @@ function StageCard({ stage }: { stage: PlanStage }) {
       <div className="mt-0.5 text-sm font-bold">{stage.node ?? '—'}</div>
       {stage.format && <div className="mt-0.5 text-[11px] text-[var(--color-chip-info-text)]">{stage.format}</div>}
       <div className="mt-1 text-[11px] text-muted-2">
-        c:{fmt(stage.compute_ms, 1)} ms · x:{fmt(stage.xfer_ms, 1)} ms
+        c:{fmtLatency(stage.compute_ms)} ms · x:{fmt(stage.xfer_ms, 1)} ms
       </div>
       {stage.cpu_cores_requested != null && (
         <div className="mt-0.5 text-[11px] text-muted-2">
@@ -90,7 +90,7 @@ export function PlanStages({ plan }: { plan?: PlanResult }) {
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--color-edge-2)] pt-2 text-[11px] text-muted-2">
         <span>
-          Latency <strong className="text-ink">{fmt(plan.latency_ms, 1)} ms</strong>
+          Latency <strong className="text-ink">{fmtLatency(plan.latency_ms)} ms</strong>
         </span>
         <span>
           Energy <strong className="text-ink">{fmt(plan.energy_kj, 3)} kJ</strong>

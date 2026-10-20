@@ -47,6 +47,9 @@ export function ReservationsPanel({ snapshot }: { snapshot?: Snapshot }) {
             aria-label="Filter reservations"
             className={`${inputCls} w-48`}
           />
+          <Button variant="ghost" disabled={!query} onClick={() => setQuery('')}>
+            Reset filter
+          </Button>
           <Button
             variant="bad"
             disabled={!rows.length || release.isPending}

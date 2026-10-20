@@ -1,12 +1,6 @@
 import type { PlanResult } from '../api/types'
-import { fmt, fmtCo2, fmtMoney, fmtPct } from '../lib/format'
+import { fmt, fmtCo2, fmtLatency, fmtMoney, fmtPct } from '../lib/format'
 import { Badge, Card, EmptyRow, Mono, TableShell, Tag, Td, Th } from './ui/primitives'
-
-function latency(value: number | undefined): string {
-  if (value === undefined || value === null) return '—'
-  if (!Number.isFinite(value)) return '∞'
-  return value.toFixed(1)
-}
 
 export function RecentPlans({
   plans,
@@ -64,7 +58,7 @@ export function RecentPlans({
                 {p.strategy ?? 'greedy'} {p.dry_run ? '(dry)' : ''}
               </div>
             </Td>
-            <Td>{latency(p.latency_ms)}</Td>
+            <Td>{fmtLatency(p.latency_ms)}</Td>
             <Td>{fmt(p.energy_kj, 3)}</Td>
             <Td>{fmtMoney(p.cost_total, p.currency)}</Td>
             <Td>{fmtCo2(p.co2_g)}</Td>

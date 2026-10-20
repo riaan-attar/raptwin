@@ -46,7 +46,8 @@ export class ApiError extends Error {
 /**
  * Python's json module writes Infinity and NaN, which JSON.parse rejects. Infeasible plans
  * carry latency_ms = Infinity, so map those bare tokens to 1e999 (parses as Infinity) and
- * null before parsing. Only tokens in value position are touched, never text inside strings.
+ * null before parsing. The current server already sends null for these; this only keeps older
+ * servers working. Only tokens in value position are touched, never text inside strings.
  */
 function parseLenient<T>(text: string): T {
   try {

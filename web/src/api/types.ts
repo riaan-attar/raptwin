@@ -161,7 +161,7 @@ export interface PlanStage {
   node?: string | null
   reservation_id?: string | null
   format?: string | null
-  compute_ms?: number
+  compute_ms?: number | null
   xfer_ms?: number
   energy_kj?: number
   risk?: number
@@ -209,7 +209,8 @@ export interface PlanResult {
   per_stage: PlanStage[]
   reservations: { node: string; reservation_id: string; stage_id?: string; role?: string }[]
   shadow_assignments?: Record<string, string[]>
-  latency_ms: number
+  /** null when the plan is infeasible (the server cannot write Infinity in JSON). */
+  latency_ms: number | null
   energy_kj: number
   risk: number
   avg_reliability?: number | null

@@ -25,6 +25,11 @@ export function fmtMs(value: unknown, digits = 1): string {
   return `${n.toFixed(digits)} ms`
 }
 
+/** latency_ms and compute_ms are null in the API exactly when a plan is infeasible (infinite). */
+export function fmtLatency(value: unknown, digits = 1): string {
+  return value === null || value === undefined ? '∞' : fmt(value, digits)
+}
+
 export function fmtTime(ms: unknown): string {
   const n = Number(ms)
   if (!Number.isFinite(n) || n <= 0) return DASH

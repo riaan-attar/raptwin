@@ -116,18 +116,17 @@ export function EventsExplorer({ intervalMs }: { intervalMs: number }) {
             {f} <span className="opacity-60">{n}</span>
           </button>
         ))}
-        {(families.size > 0 || q) && (
-          <Button
-            variant="ghost"
-            className="px-2 py-1 text-xs"
-            onClick={() => {
-              setFamilies(new Set())
-              setQ('')
-            }}
-          >
-            Reset filters
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          className="px-2 py-1 text-xs"
+          disabled={families.size === 0 && !q}
+          onClick={() => {
+            setFamilies(new Set())
+            setQ('')
+          }}
+        >
+          Reset filters
+        </Button>
       </div>
 
       <div className="max-h-[560px] overflow-auto">

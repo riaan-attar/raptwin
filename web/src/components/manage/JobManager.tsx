@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useDeleteJob, useJobs, usePlanJob, useSaveJob } from '../../api/hooks'
-import { WORKLOAD_FORMATS, type Job, type JobCatalogEntry, type JobStage } from '../../api/types'
+import { useDeleteJob, useJobs, usePlanBatch, usePlanJob, useSaveJob } from '../../api/hooks'
+import { STRATEGIES, WORKLOAD_FORMATS, type Job, type JobCatalogEntry, type JobStage } from '../../api/types'
 import { NAME_RE } from '../../lib/descriptor'
 import { cn, fmtMs } from '../../lib/format'
 import { Button, Card, Field, Mono, Notice, NumberInput, inputCls } from '../ui/primitives'
@@ -31,6 +31,27 @@ export function JobManager() {
   const [selection, setSelection] = useState<Selection>(null)
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState<JobNotice>(null)
+  const planBatch = usePlanBatch()
+  const [batchStrategy, setBatchStrategy] = useState<(typeof STRATEGIES)[number]['value']>('greedy')
+  const [batchDry, setBatchDry] = useState(true)
+
+  async function planCatalog() {
+    setNotice(null)
+    try {
+      const res = await planBatch.mutateAsync({
+        jobs: (jobs.data ?? []).map((c) => c.job),
+        strategy: batchStrategy,
+        dryRun: batchDry,
+      })
+      const bad = res.results.filter((r) => r.infeasible).length
+      setNotice({
+        tone: bad ? 'err' : 'ok',
+        text: `Planned ${res.results.length} jobs (${batchDry ? 'dry run' : 'committed'}) · ${res.results.length - bad} feasible, ${bad} infeasible`,
+      })
+    } catch (e) {
+      setNotice({ tone: 'err', text: (e as Error).message })
+    }
+  }
 
   const catalog = useMemo(() => jobs.data ?? [], [jobs.data])
   const ids = useMemo(() => new Set(catalog.map((e) => e.id)), [catalog])
@@ -51,15 +72,34 @@ export function JobManager() {
       title="Jobs"
       subtitle="Job library under jobs/*.yaml — used by the planner and the Dashboard composer"
       actions={
-        <Button
-          variant="primary"
-          onClick={() => {
-            setNotice(null)
-            setSelection({ kind: 'new' })
-          }}
-        >
-          + New job
-        </Button>
+        <>
+          <select
+            value={batchStrategy}
+            onChange={(e) => setBatchStrategy(e.target.value as typeof batchStrategy)}
+            className={inputCls}
+            aria-label="Strategy for catalog planning"
+          >
+            {STRATEGIES.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+          <label className="flex items-center gap-1.5 text-sm text-muted">
+            <input type="checkbox" checked={batchDry} onChange={(e) => setBatchDry(e.target.checked)} className="accent-accent" />
+            Dry run
+          </label>
+          <Button disabled={planBatch.isPending || catalog.length === 0} onClick={() => void planCatalog()}>
+            {planBatch.isPending ? 'Planning…' : 'Plan entire catalog'}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setNotice(null)
+              setSelection({ kind: 'new' })
+            }}
+          >
+            + New job
+          </Button>
+        </>
       }
     >
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(200px,260px)_1fr]">
@@ -71,6 +111,11 @@ export function JobManager() {
             aria-label="Search jobs"
             className={inputCls}
           />
+          {query && (
+            <Button variant="ghost" className="self-start px-2 py-1 text-xs" onClick={() => setQuery('')}>
+              Reset filter
+            </Button>
+          )}
           <div className="max-h-[560px] overflow-auto rounded-[10px] border border-[var(--color-panel2-border)] bg-panel-2 p-2">
             {jobs.isLoading && <p className="p-2 text-xs text-muted-2">Loading job library…</p>}
             {!jobs.isLoading && filtered.length === 0 && (

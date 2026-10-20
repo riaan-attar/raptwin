@@ -26,7 +26,7 @@ export function Dashboard() {
         rows={[
           [<b key="1">Overview</b>, 'Total capacity, reservations, federation load and the last plan’s spread.', 'Get a one-glance health reading.'],
           [<b key="2">Fabric Topology</b>, 'A zone-clustered force graph of every node, with real and injected links on top.', 'Zoom and pan, go full screen, click a node for its descriptor, its links and the stages the current plan put on it.'],
-          [<b key="3">Plan a Job</b>, 'Job catalogue picker, JSON editor, strategy picker, dry-run toggle.', 'Run a job with any strategy, try the demo job, or plan a batch.'],
+          [<b key="3">Plan a Job</b>, 'Catalogue picker (choose a jobs/*.yaml file, tick the jobs to include; the choice is remembered in your browser), JSON editor, strategy picker, dry-run toggle.', 'Run a job with any strategy, try the demo job, or plan only the ticked jobs as a batch.'],
           [<b key="4">Recent Plans</b>, 'History of plans with strategy, latency and feasibility.', 'Compare strategies side by side by planning the same job repeatedly.'],
           [<b key="5">Plan Detail</b>, 'Per-stage placement, compute and transfer time, energy, risk, cost, carbon, fallbacks.', 'See why a stage landed where it did, and where it would fail over.'],
           [<b key="6">Nodes / Links</b>, 'Live inventory with dynamic and effective values.', 'Filter, tick rows and inject faults in bulk (see below); check reliability, derate and loss.'],

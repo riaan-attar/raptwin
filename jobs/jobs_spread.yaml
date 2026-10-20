@@ -1,0 +1,662 @@
+# jobs/jobs_spread.yaml
+# Eight wide jobs (10-24 stages each) with heavy per-stage CPU/memory, so the planner
+# has to spread them over many nodes and federations instead of stacking one host.
+# Pair with the existing jobs_10.yaml; try them with greedy, resilient and rl_markov.
+
+version: 0.1.0
+jobs:
+- id: job-wide-etl-16
+  description: '16-stage ETL: parallel extract shards, transform, join and load. Heavy CPU per stage,
+    so it spreads over many hosts.'
+  qos: standard
+  deadline_ms: 18000
+  stages:
+  - id: s01_extract_shard1
+    type: io
+    size_mb: 220
+    resources: {cpu_cores: 6, mem_gb: 8}
+    allowed_formats: [native, wasm]
+  - id: s02_extract_shard2
+    type: io
+    size_mb: 220
+    resources: {cpu_cores: 6, mem_gb: 8}
+    allowed_formats: [native, wasm]
+  - id: s03_extract_shard3
+    type: io
+    size_mb: 220
+    resources: {cpu_cores: 6, mem_gb: 8}
+    allowed_formats: [native, wasm]
+  - id: s04_extract_shard4
+    type: io
+    size_mb: 220
+    resources: {cpu_cores: 6, mem_gb: 8}
+    allowed_formats: [native, wasm]
+  - id: s05_clean_shard1
+    type: preproc
+    size_mb: 260
+    resources: {cpu_cores: 8, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s06_clean_shard2
+    type: preproc
+    size_mb: 260
+    resources: {cpu_cores: 8, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s07_clean_shard3
+    type: preproc
+    size_mb: 260
+    resources: {cpu_cores: 8, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s08_clean_shard4
+    type: preproc
+    size_mb: 260
+    resources: {cpu_cores: 8, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s09_transform1
+    type: analytics
+    size_mb: 300
+    resources: {cpu_cores: 10, mem_gb: 16}
+    allowed_formats: [native, wasm]
+  - id: s10_transform2
+    type: analytics
+    size_mb: 300
+    resources: {cpu_cores: 10, mem_gb: 16}
+    allowed_formats: [native, wasm]
+  - id: s11_transform3
+    type: analytics
+    size_mb: 300
+    resources: {cpu_cores: 10, mem_gb: 16}
+    allowed_formats: [native, wasm]
+  - id: s12_transform4
+    type: analytics
+    size_mb: 300
+    resources: {cpu_cores: 10, mem_gb: 16}
+    allowed_formats: [native, wasm]
+  - id: s13_join
+    type: analytics
+    size_mb: 420
+    resources: {cpu_cores: 12, mem_gb: 32}
+    allowed_formats: [native, wasm]
+  - id: s14_aggregate
+    type: analytics
+    size_mb: 360
+    resources: {cpu_cores: 12, mem_gb: 24}
+    allowed_formats: [native, wasm]
+  - id: s15_quality_check
+    type: analytics
+    size_mb: 120
+    resources: {cpu_cores: 6, mem_gb: 8}
+    allowed_formats: [native, wasm]
+  - id: s16_load
+    type: io
+    size_mb: 500
+    resources: {cpu_cores: 8, mem_gb: 16}
+    allowed_formats: [native, wasm]
+- id: job-distributed-training-12
+  description: 'Data-parallel training: preprocess, 8 GPU workers, parameter merge, evaluate.'
+  qos: high
+  deadline_ms: 30000
+  stages:
+  - id: s01_ingest
+    type: io
+    size_mb: 400
+    resources: {cpu_cores: 6, mem_gb: 8}
+    allowed_formats: [native, wasm]
+  - id: s02_augment
+    type: preproc
+    size_mb: 500
+    resources: {cpu_cores: 8, mem_gb: 16}
+    allowed_formats: [native, wasm]
+  - id: s03_gpu_worker1
+    type: cv
+    size_mb: 600
+    resources: {cpu_cores: 8, mem_gb: 16, gpu_vram_gb: 12}
+    allowed_formats: [cuda, native]
+  - id: s04_gpu_worker2
+    type: cv
+    size_mb: 600
+    resources: {cpu_cores: 8, mem_gb: 16, gpu_vram_gb: 12}
+    allowed_formats: [cuda, native]
+  - id: s05_gpu_worker3
+    type: cv
+    size_mb: 600
+    resources: {cpu_cores: 8, mem_gb: 16, gpu_vram_gb: 12}
+    allowed_formats: [cuda, native]
+  - id: s06_gpu_worker4
+    type: cv
+    size_mb: 600
+    resources: {cpu_cores: 8, mem_gb: 16, gpu_vram_gb: 12}
+    allowed_formats: [cuda, native]
+  - id: s07_gpu_worker5
+    type: cv
+    size_mb: 600
+    resources: {cpu_cores: 8, mem_gb: 16, gpu_vram_gb: 12}
+    allowed_formats: [cuda, native]
+  - id: s08_gpu_worker6
+    type: cv
+    size_mb: 600
+    resources: {cpu_cores: 8, mem_gb: 16, gpu_vram_gb: 12}
+    allowed_formats: [cuda, native]
+  - id: s09_gpu_worker7
+    type: cv
+    size_mb: 600
+    resources: {cpu_cores: 8, mem_gb: 16, gpu_vram_gb: 12}
+    allowed_formats: [cuda, native]
+  - id: s10_gpu_worker8
+    type: cv
+    size_mb: 600
+    resources: {cpu_cores: 8, mem_gb: 16, gpu_vram_gb: 12}
+    allowed_formats: [cuda, native]
+  - id: s11_param_merge
+    type: mlp
+    size_mb: 300
+    resources: {cpu_cores: 12, mem_gb: 32, gpu_vram_gb: 8}
+    allowed_formats: [cuda, native]
+  - id: s12_evaluate
+    type: cv
+    size_mb: 200
+    resources: {cpu_cores: 6, mem_gb: 8, gpu_vram_gb: 4}
+    allowed_formats: [cuda, native]
+- id: job-video-farm-14
+  description: 'Video transcode farm: split, 8 parallel transcode workers, detect, merge and publish.'
+  qos: standard
+  deadline_ms: 22000
+  stages:
+  - id: s01_ingest
+    type: io
+    size_mb: 800
+    resources: {cpu_cores: 6, mem_gb: 8}
+    allowed_formats: [native, wasm]
+  - id: s02_split
+    type: preproc
+    size_mb: 700
+    resources: {cpu_cores: 8, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s03_transcode1
+    type: cv
+    size_mb: 900
+    resources: {cpu_cores: 10, mem_gb: 16, gpu_vram_gb: 6}
+    allowed_formats: [cuda, native]
+  - id: s04_transcode2
+    type: cv
+    size_mb: 900
+    resources: {cpu_cores: 10, mem_gb: 16, gpu_vram_gb: 6}
+    allowed_formats: [cuda, native]
+  - id: s05_transcode3
+    type: cv
+    size_mb: 900
+    resources: {cpu_cores: 10, mem_gb: 16, gpu_vram_gb: 6}
+    allowed_formats: [cuda, native]
+  - id: s06_transcode4
+    type: cv
+    size_mb: 900
+    resources: {cpu_cores: 10, mem_gb: 16, gpu_vram_gb: 6}
+    allowed_formats: [cuda, native]
+  - id: s07_transcode5
+    type: cv
+    size_mb: 900
+    resources: {cpu_cores: 10, mem_gb: 16, gpu_vram_gb: 6}
+    allowed_formats: [cuda, native]
+  - id: s08_transcode6
+    type: cv
+    size_mb: 900
+    resources: {cpu_cores: 10, mem_gb: 16, gpu_vram_gb: 6}
+    allowed_formats: [cuda, native]
+  - id: s09_transcode7
+    type: cv
+    size_mb: 900
+    resources: {cpu_cores: 10, mem_gb: 16, gpu_vram_gb: 6}
+    allowed_formats: [cuda, native]
+  - id: s10_transcode8
+    type: cv
+    size_mb: 900
+    resources: {cpu_cores: 10, mem_gb: 16, gpu_vram_gb: 6}
+    allowed_formats: [cuda, native]
+  - id: s11_detect_objects
+    type: cv
+    size_mb: 500
+    resources: {cpu_cores: 8, mem_gb: 16, gpu_vram_gb: 8}
+    allowed_formats: [cuda, native]
+  - id: s12_stitch
+    type: preproc
+    size_mb: 1200
+    resources: {cpu_cores: 12, mem_gb: 24}
+    allowed_formats: [native, wasm]
+  - id: s13_publish
+    type: io
+    size_mb: 600
+    resources: {cpu_cores: 6, mem_gb: 8}
+    allowed_formats: [native, wasm]
+- id: job-sensor-mesh-20
+  description: 'Edge sensor mesh: 8 collectors, 8 local aggregators, regional rollups and a global model.
+    Many small stages, many nodes.'
+  qos: standard
+  deadline_ms: 16000
+  stages:
+  - id: s01_collect1
+    type: io
+    size_mb: 40
+    resources: {cpu_cores: 3, mem_gb: 3}
+    allowed_formats: [native, wasm]
+  - id: s02_collect2
+    type: io
+    size_mb: 40
+    resources: {cpu_cores: 3, mem_gb: 3}
+    allowed_formats: [native, wasm]
+  - id: s03_collect3
+    type: io
+    size_mb: 40
+    resources: {cpu_cores: 3, mem_gb: 3}
+    allowed_formats: [native, wasm]
+  - id: s04_collect4
+    type: io
+    size_mb: 40
+    resources: {cpu_cores: 3, mem_gb: 3}
+    allowed_formats: [native, wasm]
+  - id: s05_collect5
+    type: io
+    size_mb: 40
+    resources: {cpu_cores: 3, mem_gb: 3}
+    allowed_formats: [native, wasm]
+  - id: s06_collect6
+    type: io
+    size_mb: 40
+    resources: {cpu_cores: 3, mem_gb: 3}
+    allowed_formats: [native, wasm]
+  - id: s07_collect7
+    type: io
+    size_mb: 40
+    resources: {cpu_cores: 3, mem_gb: 3}
+    allowed_formats: [native, wasm]
+  - id: s08_collect8
+    type: io
+    size_mb: 40
+    resources: {cpu_cores: 3, mem_gb: 3}
+    allowed_formats: [native, wasm]
+  - id: s09_aggregate1
+    type: analytics
+    size_mb: 80
+    resources: {cpu_cores: 4, mem_gb: 6}
+    allowed_formats: [native, wasm]
+  - id: s10_aggregate2
+    type: analytics
+    size_mb: 80
+    resources: {cpu_cores: 4, mem_gb: 6}
+    allowed_formats: [native, wasm]
+  - id: s11_aggregate3
+    type: analytics
+    size_mb: 80
+    resources: {cpu_cores: 4, mem_gb: 6}
+    allowed_formats: [native, wasm]
+  - id: s12_aggregate4
+    type: analytics
+    size_mb: 80
+    resources: {cpu_cores: 4, mem_gb: 6}
+    allowed_formats: [native, wasm]
+  - id: s13_aggregate5
+    type: analytics
+    size_mb: 80
+    resources: {cpu_cores: 4, mem_gb: 6}
+    allowed_formats: [native, wasm]
+  - id: s14_aggregate6
+    type: analytics
+    size_mb: 80
+    resources: {cpu_cores: 4, mem_gb: 6}
+    allowed_formats: [native, wasm]
+  - id: s15_aggregate7
+    type: analytics
+    size_mb: 80
+    resources: {cpu_cores: 4, mem_gb: 6}
+    allowed_formats: [native, wasm]
+  - id: s16_aggregate8
+    type: analytics
+    size_mb: 80
+    resources: {cpu_cores: 4, mem_gb: 6}
+    allowed_formats: [native, wasm]
+  - id: s17_rollup_a
+    type: analytics
+    size_mb: 120
+    resources: {cpu_cores: 6, mem_gb: 8}
+    allowed_formats: [native, wasm]
+  - id: s18_rollup_b
+    type: analytics
+    size_mb: 120
+    resources: {cpu_cores: 6, mem_gb: 8}
+    allowed_formats: [native, wasm]
+  - id: s19_anomaly_model
+    type: mlp
+    size_mb: 160
+    resources: {cpu_cores: 8, mem_gb: 12, gpu_vram_gb: 6}
+    allowed_formats: [cuda, native]
+  - id: s20_alert_router
+    type: io
+    size_mb: 30
+    resources: {cpu_cores: 2, mem_gb: 2}
+    allowed_formats: [native, wasm]
+- id: job-genomics-18
+  description: 'Genomics pipeline: QC, 6 parallel aligners, variant calling per chromosome group, annotation
+    and report.'
+  qos: standard
+  deadline_ms: 45000
+  stages:
+  - id: s01_fetch_reads
+    type: io
+    size_mb: 900
+    resources: {cpu_cores: 6, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s02_qc
+    type: preproc
+    size_mb: 700
+    resources: {cpu_cores: 8, mem_gb: 16}
+    allowed_formats: [native, wasm]
+  - id: s03_align1
+    type: analytics
+    size_mb: 1100
+    resources: {cpu_cores: 14, mem_gb: 48}
+    allowed_formats: [native, wasm]
+  - id: s04_align2
+    type: analytics
+    size_mb: 1100
+    resources: {cpu_cores: 14, mem_gb: 48}
+    allowed_formats: [native, wasm]
+  - id: s05_align3
+    type: analytics
+    size_mb: 1100
+    resources: {cpu_cores: 14, mem_gb: 48}
+    allowed_formats: [native, wasm]
+  - id: s06_align4
+    type: analytics
+    size_mb: 1100
+    resources: {cpu_cores: 14, mem_gb: 48}
+    allowed_formats: [native, wasm]
+  - id: s07_align5
+    type: analytics
+    size_mb: 1100
+    resources: {cpu_cores: 14, mem_gb: 48}
+    allowed_formats: [native, wasm]
+  - id: s08_align6
+    type: analytics
+    size_mb: 1100
+    resources: {cpu_cores: 14, mem_gb: 48}
+    allowed_formats: [native, wasm]
+  - id: s09_call_variants1
+    type: analytics
+    size_mb: 800
+    resources: {cpu_cores: 12, mem_gb: 32}
+    allowed_formats: [native, wasm]
+  - id: s10_call_variants2
+    type: analytics
+    size_mb: 800
+    resources: {cpu_cores: 12, mem_gb: 32}
+    allowed_formats: [native, wasm]
+  - id: s11_call_variants3
+    type: analytics
+    size_mb: 800
+    resources: {cpu_cores: 12, mem_gb: 32}
+    allowed_formats: [native, wasm]
+  - id: s12_call_variants4
+    type: analytics
+    size_mb: 800
+    resources: {cpu_cores: 12, mem_gb: 32}
+    allowed_formats: [native, wasm]
+  - id: s13_merge_vcf
+    type: analytics
+    size_mb: 600
+    resources: {cpu_cores: 12, mem_gb: 32}
+    allowed_formats: [native, wasm]
+  - id: s14_annotate
+    type: analytics
+    size_mb: 400
+    resources: {cpu_cores: 8, mem_gb: 24}
+    allowed_formats: [native, wasm]
+  - id: s15_cnn_filter
+    type: cv
+    size_mb: 300
+    resources: {cpu_cores: 8, mem_gb: 16, gpu_vram_gb: 8}
+    allowed_formats: [cuda, native]
+  - id: s16_report
+    type: io
+    size_mb: 100
+    resources: {cpu_cores: 4, mem_gb: 4}
+    allowed_formats: [native, wasm]
+- id: job-llm-rag-12
+  description: 'RAG serving: tokenise, 4 embedding shards, vector search, rerank, 2 LLM shards, safety
+    filter, respond.'
+  qos: critical
+  deadline_ms: 12000
+  stages:
+  - id: s01_tokenize
+    type: preproc
+    size_mb: 60
+    resources: {cpu_cores: 4, mem_gb: 4}
+    allowed_formats: [native, wasm]
+  - id: s02_embed_shard1
+    type: nlp
+    size_mb: 200
+    resources: {cpu_cores: 6, mem_gb: 12, gpu_vram_gb: 8}
+    allowed_formats: [cuda, native, wasm]
+  - id: s03_embed_shard2
+    type: nlp
+    size_mb: 200
+    resources: {cpu_cores: 6, mem_gb: 12, gpu_vram_gb: 8}
+    allowed_formats: [cuda, native, wasm]
+  - id: s04_embed_shard3
+    type: nlp
+    size_mb: 200
+    resources: {cpu_cores: 6, mem_gb: 12, gpu_vram_gb: 8}
+    allowed_formats: [cuda, native, wasm]
+  - id: s05_embed_shard4
+    type: nlp
+    size_mb: 200
+    resources: {cpu_cores: 6, mem_gb: 12, gpu_vram_gb: 8}
+    allowed_formats: [cuda, native, wasm]
+  - id: s06_vector_search
+    type: analytics
+    size_mb: 300
+    resources: {cpu_cores: 10, mem_gb: 32}
+    allowed_formats: [native, wasm]
+  - id: s07_rerank
+    type: nlp
+    size_mb: 180
+    resources: {cpu_cores: 6, mem_gb: 12, gpu_vram_gb: 6}
+    allowed_formats: [cuda, native]
+  - id: s08_llm_shard1
+    type: nlp
+    size_mb: 500
+    resources: {cpu_cores: 10, mem_gb: 24, gpu_vram_gb: 16}
+    allowed_formats: [cuda, native]
+  - id: s09_llm_shard2
+    type: nlp
+    size_mb: 500
+    resources: {cpu_cores: 10, mem_gb: 24, gpu_vram_gb: 16}
+    allowed_formats: [cuda, native]
+  - id: s10_safety_filter
+    type: mlp
+    size_mb: 80
+    resources: {cpu_cores: 4, mem_gb: 4, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s11_respond
+    type: io
+    size_mb: 20
+    resources: {cpu_cores: 2, mem_gb: 2}
+    allowed_formats: [native, wasm]
+- id: job-smart-city-24
+  description: 'Smart-city digest: 12 camera feeds, 6 per-district analytics, 4 correlators, planner and
+    dashboard feed.'
+  qos: standard
+  deadline_ms: 25000
+  stages:
+  - id: s01_camera01
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s02_camera02
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s03_camera03
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s04_camera04
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s05_camera05
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s06_camera06
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s07_camera07
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s08_camera08
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s09_camera09
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s10_camera10
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s11_camera11
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s12_camera12
+    type: cv
+    size_mb: 150
+    resources: {cpu_cores: 4, mem_gb: 6, gpu_vram_gb: 2}
+    allowed_formats: [cuda, native]
+  - id: s13_district1
+    type: analytics
+    size_mb: 200
+    resources: {cpu_cores: 6, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s14_district2
+    type: analytics
+    size_mb: 200
+    resources: {cpu_cores: 6, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s15_district3
+    type: analytics
+    size_mb: 200
+    resources: {cpu_cores: 6, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s16_district4
+    type: analytics
+    size_mb: 200
+    resources: {cpu_cores: 6, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s17_district5
+    type: analytics
+    size_mb: 200
+    resources: {cpu_cores: 6, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s18_district6
+    type: analytics
+    size_mb: 200
+    resources: {cpu_cores: 6, mem_gb: 12}
+    allowed_formats: [native, wasm]
+  - id: s19_correlate1
+    type: analytics
+    size_mb: 260
+    resources: {cpu_cores: 8, mem_gb: 16}
+    allowed_formats: [native, wasm]
+  - id: s20_correlate2
+    type: analytics
+    size_mb: 260
+    resources: {cpu_cores: 8, mem_gb: 16}
+    allowed_formats: [native, wasm]
+  - id: s21_correlate3
+    type: analytics
+    size_mb: 260
+    resources: {cpu_cores: 8, mem_gb: 16}
+    allowed_formats: [native, wasm]
+  - id: s22_correlate4
+    type: analytics
+    size_mb: 260
+    resources: {cpu_cores: 8, mem_gb: 16}
+    allowed_formats: [native, wasm]
+  - id: s23_traffic_planner
+    type: mlp
+    size_mb: 220
+    resources: {cpu_cores: 10, mem_gb: 24, gpu_vram_gb: 8}
+    allowed_formats: [cuda, native]
+  - id: s24_dashboard_feed
+    type: io
+    size_mb: 60
+    resources: {cpu_cores: 3, mem_gb: 4}
+    allowed_formats: [native, wasm]
+- id: job-hpc-sim-10
+  description: 'HPC simulation: mesh setup, 6 solver partitions with large memory, reduce, visualise.'
+  qos: standard
+  deadline_ms: 40000
+  stages:
+  - id: s01_mesh
+    type: preproc
+    size_mb: 600
+    resources: {cpu_cores: 12, mem_gb: 32}
+    allowed_formats: [native, wasm]
+  - id: s02_solver_part1
+    type: analytics
+    size_mb: 1500
+    resources: {cpu_cores: 16, mem_gb: 64}
+    allowed_formats: [native, wasm]
+  - id: s03_solver_part2
+    type: analytics
+    size_mb: 1500
+    resources: {cpu_cores: 16, mem_gb: 64}
+    allowed_formats: [native, wasm]
+  - id: s04_solver_part3
+    type: analytics
+    size_mb: 1500
+    resources: {cpu_cores: 16, mem_gb: 64}
+    allowed_formats: [native, wasm]
+  - id: s05_solver_part4
+    type: analytics
+    size_mb: 1500
+    resources: {cpu_cores: 16, mem_gb: 64}
+    allowed_formats: [native, wasm]
+  - id: s06_solver_part5
+    type: analytics
+    size_mb: 1500
+    resources: {cpu_cores: 16, mem_gb: 64}
+    allowed_formats: [native, wasm]
+  - id: s07_solver_part6
+    type: analytics
+    size_mb: 1500
+    resources: {cpu_cores: 16, mem_gb: 64}
+    allowed_formats: [native, wasm]
+  - id: s08_reduce
+    type: analytics
+    size_mb: 700
+    resources: {cpu_cores: 16, mem_gb: 64}
+    allowed_formats: [native, wasm]
+  - id: s09_render
+    type: cv
+    size_mb: 400
+    resources: {cpu_cores: 8, mem_gb: 16, gpu_vram_gb: 8}
+    allowed_formats: [cuda, native]
+  - id: s10_archive
+    type: io
+    size_mb: 900
+    resources: {cpu_cores: 4, mem_gb: 8}
+    allowed_formats: [native, wasm]
