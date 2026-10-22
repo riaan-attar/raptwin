@@ -40,7 +40,7 @@ raptwin.seloraos.online {
 		header /sitemap.xml Cache-Control "public, max-age=86400"
 		header /og-image.* Cache-Control "public, max-age=604800"
 
-		try_files {path} /index.html
+		try_files {path} {path}/index.html /index.html
 		file_server
 	}
 }
