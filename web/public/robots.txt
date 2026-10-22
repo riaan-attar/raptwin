@@ -5,14 +5,11 @@
 User-agent: *
 Allow: /
 Allow: /api/health
-Allow: /api/snapshot
-Disallow: /api/control/
-Disallow: /api/chaos/
+Disallow: /api/
 
 # Sitemaps
 Sitemap: https://raptwin.seloraos.online/sitemap.xml
 
-# Search Engine Crawlers
 User-agent: Googlebot
 Allow: /
 Allow: /*.js$
@@ -20,9 +17,10 @@ Allow: /*.css$
 Allow: /*.svg$
 Allow: /*.png$
 Allow: /*.json$
+Allow: /api/health
+Disallow: /api/
 
 User-agent: Googlebot-Image
-Allow: /
 Allow: /favicon.svg
 Allow: /og-image.png
 Allow: /og-image.svg
@@ -33,18 +31,25 @@ Allow: /*.js$
 Allow: /*.css$
 Allow: /*.svg$
 Allow: /*.png$
+Allow: /api/health
+Disallow: /api/
 
 User-agent: Applebot
 Allow: /
+Disallow: /api/
 
 User-agent: DuckDuckBot
 Allow: /
+Disallow: /api/
 
 User-agent: Slurp
 Allow: /
+Disallow: /api/
 
 User-agent: Baiduspider
 Allow: /
+Disallow: /api/
 
 User-agent: YandexBot
 Allow: /
+Disallow: /api/

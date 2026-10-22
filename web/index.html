@@ -22,17 +22,22 @@
     <!-- Meta Description (Targeting Google, Bing, DuckDuckGo) -->
     <meta
       name="description"
-      content="RAP Twin by Riaan Attar is an autonomous distributed fabric digital twin engine. Simulates heterogeneous compute/network topologies, AI scheduling &amp; self-healing at raptwin.seloraos.online."
+      content="RAP Twin by Riaan Attar: an open-source distributed fabric digital twin. Plan AI workloads, run timed jobs, inject chaos faults, watch autonomous self-healing and compare what-if topologies, live at raptwin.seloraos.online."
     />
 
     <!-- Target Keywords: Riaan Attar, RAP Twin, raptwin.seloraos.online, Fabric Simulation -->
     <meta
       name="keywords"
-      content="Riaan Attar, Riaan Masoud Attar, raptwin.seloraos.online, RAP Twin, RAPTwin, fabric digital twin, distributed fabric simulator, autonomous self-healing fabric, AI fabric scheduler, distributed systems simulation, network topology simulator, CloudEvent bus SSE, chaos engineering, what-if topology analysis, InfiniBand Ethernet WiFi-7, Selora OS, SeloraOS, cloud computing digital twin, multi-region workload orchestration, edge computing simulator"
+      content="Riaan Attar, Riaan Masoud Attar, raptwin.seloraos.online, RAP Twin, RAPTwin, fabric digital twin, distributed fabric simulator, autonomous self-healing fabric, AI fabric scheduler, distributed systems simulation, network topology simulator, CloudEvent bus SSE, chaos engineering, what-if topology analysis, InfiniBand Ethernet WiFi-7, Selora OS, SeloraOS, cloud computing digital twin, multi-region workload orchestration, edge computing simulator, digital twin software, job scheduler simulator, workload placement planner, RL-Markov planner, resilient scheduling, resource reservation, job timer, running jobs dashboard, CloudEvents, Server-Sent Events dashboard, fault injection, blast radius analysis, Monte Carlo simulation, capacity planning tool, open source digital twin, Riaan Attar developer, Riaan Attar RAP Twin, Riaan Attar portfolio, Riaan Attar GitHub"
     />
 
     <!-- Author & Attribution -->
     <meta name="author" content="Riaan Attar" />
+    <meta name="subject" content="Distributed fabric digital twin and AI workload scheduling" />
+    <meta name="category" content="Developer Tools, Distributed Systems, Simulation" />
+    <meta name="language" content="English" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta property="article:author" content="https://github.com/riaan-attar" />
     <meta name="creator" content="Riaan Attar" />
     <meta name="publisher" content="Riaan Attar" />
     <link rel="author" href="https://github.com/riaan-attar" />
@@ -40,6 +45,10 @@
 
     <!-- Canonical URL -->
     <link rel="canonical" href="https://raptwin.seloraos.online/" />
+    <link rel="alternate" hreflang="en" href="https://raptwin.seloraos.online/" />
+    <link rel="alternate" hreflang="x-default" href="https://raptwin.seloraos.online/" />
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <link rel="preconnect" href="https://raptwin.seloraos.online" />
 
     <!-- Web App & PWA Settings -->
     <meta name="application-name" content="RAP Twin" />
@@ -167,8 +176,20 @@
               "Multi-region heterogeneous fabric modeling (InfiniBand, Ethernet, Wi-Fi 7, LTE)",
               "Autonomous self-healing and proactive guardian reconciliation",
               "Monte Carlo & What-if blast radius analysis",
-              "Chaos engineering and topology fault injection"
-            ]
+              "Chaos engineering and topology fault injection",
+              "Job run timer that frees reservations automatically when a job ends",
+              "Events & Jobs page: live countdowns, per-stage timeline, bulk finish and cancel",
+              "Greedy, Resilient and RL-Markov workload planners with cost and carbon scoring",
+              "Bulk select, filter and fault actions across nodes, links and federations",
+              "Job catalogues with infeasible and edge-case test sets",
+              "17-page documentation and REST API reference"
+            ],
+            "keywords": "digital twin, distributed fabric simulator, workload scheduling, chaos engineering, self-healing, what-if analysis, job timer, Riaan Attar",
+            "inLanguage": "en",
+            "isAccessibleForFree": true,
+            "softwareHelp": { "@type": "CreativeWork", "url": "https://raptwin.seloraos.online/docs/introduction/" },
+            "codeRepository": "https://github.com/riaan-attar/raptwin",
+            "screenshot": "https://raptwin.seloraos.online/og-image.png"
           },
           {
             "@type": "WebSite",
@@ -194,37 +215,49 @@
                 "@type": "ListItem",
                 "position": 2,
                 "name": "Nodes",
-                "item": "https://raptwin.seloraos.online/#nodes"
+                "item": "https://raptwin.seloraos.online/nodes/"
               },
               {
                 "@type": "ListItem",
                 "position": 3,
                 "name": "Links",
-                "item": "https://raptwin.seloraos.online/#links"
+                "item": "https://raptwin.seloraos.online/links/"
               },
               {
                 "@type": "ListItem",
                 "position": 4,
-                "name": "Jobs",
-                "item": "https://raptwin.seloraos.online/#jobs"
+                "name": "Job Library",
+                "item": "https://raptwin.seloraos.online/job-library/"
               },
               {
                 "@type": "ListItem",
                 "position": 5,
-                "name": "Chaos & Faults",
-                "item": "https://raptwin.seloraos.online/#chaos"
+                "name": "Events & Jobs",
+                "item": "https://raptwin.seloraos.online/events/"
               },
               {
                 "@type": "ListItem",
                 "position": 6,
-                "name": "What-if Simulation",
-                "item": "https://raptwin.seloraos.online/#whatif"
+                "name": "Chaos & Faults",
+                "item": "https://raptwin.seloraos.online/chaos/"
               },
               {
                 "@type": "ListItem",
                 "position": 7,
+                "name": "What-if Simulation",
+                "item": "https://raptwin.seloraos.online/whatif/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 8,
                 "name": "Reservations",
-                "item": "https://raptwin.seloraos.online/#reservations"
+                "item": "https://raptwin.seloraos.online/reservations/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 9,
+                "name": "Documentation",
+                "item": "https://raptwin.seloraos.online/docs/introduction/"
               }
             ]
           }
@@ -256,13 +289,15 @@
 
         <h2>Platform Navigation</h2>
         <ul>
-          <li><a href="https://raptwin.seloraos.online/#dashboard" style="color: #6fc1ff;">Fabric Overview &amp; Topology Graph</a></li>
-          <li><a href="https://raptwin.seloraos.online/#nodes" style="color: #6fc1ff;">Distributed Node Management</a></li>
-          <li><a href="https://raptwin.seloraos.online/#links" style="color: #6fc1ff;">High-Speed Fabric Links &amp; Interconnects</a></li>
-          <li><a href="https://raptwin.seloraos.online/#jobs" style="color: #6fc1ff;">Job Composer &amp; Multi-Stage Workload Fitting</a></li>
-          <li><a href="https://raptwin.seloraos.online/#chaos" style="color: #6fc1ff;">Chaos Testing, Fault Injection &amp; Incident Bundles</a></li>
-          <li><a href="https://raptwin.seloraos.online/#whatif" style="color: #6fc1ff;">What-If Capacity Planning &amp; Outage Simulation</a></li>
-          <li><a href="https://raptwin.seloraos.online/#reservations" style="color: #6fc1ff;">Fabric Resource Reservations</a></li>
+          <li><a href="https://raptwin.seloraos.onlineFabric Overview &amp; Topology Graph" style="color: #6fc1ff;">/</a></li>
+          <li><a href="https://raptwin.seloraos.onlineDistributed Node Management" style="color: #6fc1ff;">/nodes/</a></li>
+          <li><a href="https://raptwin.seloraos.onlineHigh-Speed Fabric Links &amp; Interconnects" style="color: #6fc1ff;">/links/</a></li>
+          <li><a href="https://raptwin.seloraos.onlineJob Library &amp; Multi-Stage Workload Catalogues" style="color: #6fc1ff;">/job-library/</a></li>
+          <li><a href="https://raptwin.seloraos.onlineEvents &amp; Jobs: Running Jobs, Job Timer &amp; Twin Events" style="color: #6fc1ff;">/events/</a></li>
+          <li><a href="https://raptwin.seloraos.onlineChaos Testing, Fault Injection &amp; Incident Bundles" style="color: #6fc1ff;">/chaos/</a></li>
+          <li><a href="https://raptwin.seloraos.onlineWhat-If Capacity Planning &amp; Outage Simulation" style="color: #6fc1ff;">/whatif/</a></li>
+          <li><a href="https://raptwin.seloraos.onlineFabric Resource Reservations" style="color: #6fc1ff;">/reservations/</a></li>
+          <li><a href="https://raptwin.seloraos.onlineDocumentation &amp; API Reference" style="color: #6fc1ff;">/docs/introduction/</a></li>
         </ul>
 
         <p>GitHub Repository: <a href="https://github.com/riaan-attar/raptwin" style="color: #6fc1ff;">https://github.com/riaan-attar/raptwin</a></p>

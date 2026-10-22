@@ -143,6 +143,8 @@ export default function App() {
   useEffect(() => setMenuOpen(false), [tab])
 
   useEffect(() => {
+    // The Docs component titles itself per page ("API Reference — RAP Twin Docs").
+    if (tab === 'docs') return
     document.title = TAB_TITLES[tab] ?? 'RAP Twin — Distributed Fabric Digital Twin | Riaan Attar'
   }, [tab])
 

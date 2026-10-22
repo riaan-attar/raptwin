@@ -1,7 +1,7 @@
 {
   "name": "RAP Twin — Autonomous Distributed Fabric Simulator & Digital Twin Engine",
   "short_name": "RAP Twin",
-  "description": "Realtime distributed fabric digital twin, autonomous self-healing, AI scheduler & chaos platform architected by Riaan Attar.",
+  "description": "Realtime distributed fabric digital twin: AI workload planner, job timer, chaos engineering and self-healing, by Riaan Attar.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -33,6 +33,31 @@
     "cloud computing",
     "distributed systems",
     "simulation",
-    "networking"
+    "networking",
+    "productivity"
+  ],
+  "lang": "en",
+  "id": "/",
+  "shortcuts": [
+    {
+      "name": "Nodes",
+      "short_name": "Nodes",
+      "url": "/nodes/"
+    },
+    {
+      "name": "Events & Jobs",
+      "short_name": "Events & Jobs",
+      "url": "/events/"
+    },
+    {
+      "name": "Job Library",
+      "short_name": "Job Library",
+      "url": "/job-library/"
+    },
+    {
+      "name": "Documentation",
+      "short_name": "Documentation",
+      "url": "/docs/introduction/"
+    }
   ]
 }

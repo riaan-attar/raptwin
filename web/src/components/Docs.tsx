@@ -99,6 +99,10 @@ export function Docs() {
   const [query, setQuery] = useState('')
   const index = PAGES.findIndex((p) => p.id === pageId)
   const current = PAGES[index]
+
+  useEffect(() => {
+    document.title = `${current.title} — RAP Twin Docs | Riaan Attar`
+  }, [current.title])
   const Current = current.Component
   const [outline, activeHeading] = useOutline(pageId)
 
