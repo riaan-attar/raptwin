@@ -1,22 +1,22 @@
-# Graph Report - raptwin  (2026-10-20)
+# Graph Report - raptwin  (2026-10-26)
 
 ## Corpus Check
-- 150 files · ~534,190 words
+- 159 files · ~773,872 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 44 file(s) not represented in the graph (top: .tex 21, .zip 6, (none) 3)
+- Unclassified: 49 file(s) not represented in the graph (top: .tex 22, .zip 7, (none) 4)
 
 ## Summary
-- 2196 nodes · 5500 edges · 96 communities (77 shown, 19 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 146 edges (avg confidence: 0.9)
+- 2335 nodes · 5789 edges · 128 communities (93 shown, 35 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 150 edges (avg confidence: 0.89)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `877ad243`
+- Built from commit: `01c22c4a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- Any
+- DTState
 - Docs.tsx
 - montecarlo.py
 - MarkovPlanner
@@ -28,29 +28,29 @@
 - Workload format native
 - state.py
 - api.py
-- TopologyGraph.tsx
+- format.ts
 - validators.py
 - types.ts
 - test_management.py
 - test_ci_gate.py
 - gen_nodes.py
-- dashboard.py
+- test_mqtt_bridge.py
 - Arch/microarchitecture mismatch (amd64 with ARM Neoverse uarch)
 - summarize_nodes.py
 - PredictiveAnalyzer
 - 2.0 Overall Description
 - Step 2: Multi-Strategy Workload Planning
 - compilerOptions
-- ChaosEngine
+- chaos.py
 - compilerOptions
 - GPU/accelerator: RTX-5060-Ti
 - make_figures.py
-- sys
+- benchmark_paper_figures.py
 - package.json
-- hooks.ts
+- App.tsx
 - ._emit_event
-- greedy.py
-- DTState
+- sys
+- policy_benchmark.py
 - puppeteer
 - JobRunManager
 - JobManager.tsx
@@ -60,14 +60,14 @@
 - test_runs.py
 - icons.svg (SVG symbol sprite)
 - dependencies
-- Card
+- Mono
 - .oxlintrc.json
 - GPU/accelerator: RTX-3060
-- safe_float
+- CostModel
 - BanditPolicy
 - scripts
 - RISC-V 64 (riscv64) architecture
-- deploy.sh
+- deploy.sh script
 - test_api_auth.py
 - tsconfig.json
 - NoiseInjector
@@ -87,53 +87,85 @@
 - sbc-093 (sbc, arm64)
 - sbc-099 (sbc, arm64)
 - RLPolicy
-- NodeManager.tsx
+- dashboard.py
 - primitives.tsx
 - test_bundle.py
-- ._update_link_predictive_locked
+- hooks.ts
 - Industry/Alumni Mentor Interaction Record
 - update_srs_docx.py
 - run.sh
 - runs.mjs
-- test_blast_radius.py
+- blast_radius.py
 - test_whatif.py
 - run_plan.py
 - launch_fabric.py
 - Clock
 - SelfHealingController
 - 2. New modules (in progress)
-- ci_gate.py
+- run_experiments.py
 - Future work — research validation backlog
-- safe_float
+- FederatedPlanner
 - restart.mjs
 - test_twin_restart.py
-- .upsert_link
+- safe_float
 - pytest
 - make_tables.py
 - vite-env.d.ts
+- TopologyGraph.tsx
+- faults.ts
+- tool
+- GreedyPlanner
+- _call
+- Snapshot
+- whatif.py
+- server.py
+- vite.seo.mjs
+- test_json_safe.py
+- _need
+- release
+- vite.config.ts
+- ResourceGuardian
+- realtime.mjs
+- plan_job
+- IEEEtran.cls
+- README.md
+- get_federations
+- get_node
+- get_topology
+- health_cleanup
+- list_jobs
+- list_links
+- list_nodes
+- list_plans
+- list_scenarios
+- save_node
+- save_job
+- stop_chaos
+- what_if
+- recent_events
 
 ## God Nodes (most connected - your core abstractions)
 1. `DTState` - 144 edges
 2. `safe_float()` - 62 edges
 3. `CostModel` - 54 edges
-4. `react` - 37 edges
-5. `_ok()` - 35 edges
-6. `MarkovPlanner` - 33 edges
-7. `cn()` - 31 edges
-8. `JobRunManager` - 27 edges
-9. `Workload format native` - 27 edges
-10. `Workload format wasm` - 27 edges
+4. `_call()` - 42 edges
+5. `react` - 39 edges
+6. `_ok()` - 36 edges
+7. `MarkovPlanner` - 33 edges
+8. `cn()` - 31 edges
+9. `JobRunManager` - 27 edges
+10. `Workload format native` - 27 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `RAP twin Documentation README` --semantically_similar_to--> `RAP Twin Digital Twin Fabric Simulator`  [INFERRED] [semantically similar]
   documentation/README.md → README.md
 - `Caddy Reverse Proxy` --semantically_similar_to--> `Vite /api Proxy`  [INFERRED] [semantically similar]
   deploy/README.md → web/README.md
+- `test_json_safe_replaces_non_finite_floats()` --calls--> `_json_safe()`  [EXTRACTED]
+  tests/test_json_safe.py → dt/api.py
 - `take_sample()` --indirect_call--> `jobs()`  [INFERRED]
   tools/ci_gate.py → dt/api.py
 - `whatif()` --uses--> `Fault`  [INFERRED]
-  dt/api.py → sim/blast_radius.py
-- `blast_radius()` --uses--> `BlastRadiusSearch`  [INFERRED]
   dt/api.py → sim/blast_radius.py
 
 ## Import Cycles
@@ -152,11 +184,11 @@
 - **Plan-test-adjust constraint iteration loop** — kkwieer_riaan_multi_strategy_workload_planning, kkwieer_riaan_chaos_engineering_fault_injection, kkwieer_riaan_strategy_adjustment, kkwieer_riaan_feedback_loop [INFERRED 0.85]
 - **SSE Realtime Update Pipeline** — web_readme_cloudevent_bus, web_readme_sse_stream, web_readme_useeventstream, deploy_readme_caddy_reverse_proxy, web_readme_vite_proxy [INFERRED 0.85]
 
-## Communities (96 total, 19 thin omitted)
+## Communities (128 total, 35 thin omitted)
 
-### Community 0 - "Any"
-Cohesion: 0.07
-Nodes (12): clamp(), Any, Cheap read-only health of one node (None if unknown)., Return instantaneous capacity/free headroom metrics for a node., Return a copy of all reservations grouped by node., Public wrapper so API/controllers can publish without touching internals., Save predictive history so it can be rewound (see PredictiveAnalyzer)., Lower is better. Very simple latency proxy: - Penalize 'down', thermal_derate,… (+4 more)
+### Community 0 - "DTState"
+Cohesion: 0.06
+Nodes (18): clamp(), DTState, Any, Return instantaneous capacity/free headroom metrics for a node., Return a copy of all reservations grouped by node., Register a live event listener; returns a Queue of CloudEvents., Public wrapper so API/controllers can publish without touching internals., Save predictive history so it can be rewound (see PredictiveAnalyzer). (+10 more)
 
 ### Community 1 - "Docs.tsx"
 Cohesion: 0.09
@@ -195,52 +227,52 @@ Cohesion: 0.16
 Nodes (41): CPU microarchitecture GoldenCove, CPU microarchitecture NeoverseN2, CPU microarchitecture NeoverseV1, CPU microarchitecture P-core/E-core, CPU microarchitecture Zen3, CPU microarchitecture Zen4, GPU/accelerator: RTX-A2000, Device class server (+33 more)
 
 ### Community 10 - "state.py"
-Cohesion: 0.10
-Nodes (31): collections, dataclasses, datetime, dt/chaos_runner.py — run sim/chaos.py scenarios inside the DT API process. The…, merge_stage_details(), Combine planner annotations with cost model metrics per stage. ``primary``…, dt/cost_model.py — Latency, transfer, energy, and risk estimators for Fabric…, Simple CloudEvents helpers for the Fabric Digital Twin. (+23 more)
+Cohesion: 0.11
+Nodes (31): collections, copy, dataclasses, datetime, dt/chaos_runner.py — run sim/chaos.py scenarios inside the DT API process. The…, merge_stage_details(), Combine planner annotations with cost model metrics per stage. ``primary``…, dt/cost_model.py — Latency, transfer, energy, and risk estimators for Fabric… (+23 more)
 
 ### Community 11 - "api.py"
-Cohesion: 0.05
-Nodes (84): before_request, delete, add_node(), blast_radius(), bundle(), chaos_start(), chaos_status(), chaos_stop() (+76 more)
+Cohesion: 0.06
+Nodes (87): before_request, delete, add_node(), blast_radius(), bundle(), _catalog_filename(), chaos_start(), chaos_status() (+79 more)
 
-### Community 12 - "TopologyGraph.tsx"
-Cohesion: 0.10
-Nodes (36): d3, useRelease(), PlanResult, PlanStage, Snapshot, ReservationsPanel(), Overview(), PlanStages() (+28 more)
+### Community 12 - "format.ts"
+Cohesion: 0.16
+Nodes (27): useRelease(), useWhatIf(), PlanResult, ReservationsPanel(), Mode, MODES, WhatIfPanel(), buildChanges() (+19 more)
 
 ### Community 13 - "validators.py"
 Cohesion: 0.08
 Nodes (40): assert_instance(), assert_job(), assert_node(), assert_topology(), _CompiledSchema, DirReport, _extend_with_default(), _format_error() (+32 more)
 
 ### Community 14 - "types.ts"
-Cohesion: 0.07
-Nodes (33): api, ApiError, request(), ApiEnvelope, ApiErr, ApiOk, BlastFault, ChaosInfo (+25 more)
+Cohesion: 0.06
+Nodes (51): api, ApiError, parseLenient(), request(), useSaveNode(), ApiEnvelope, ApiErr, ApiOk (+43 more)
 
 ### Community 15 - "test_management.py"
-Cohesion: 0.12
-Nodes (5): client(), fabric(), fixture, Isolated nodes/ + topology.yaml copies so tests never touch the repo files., state()
+Cohesion: 0.13
+Nodes (5): _job(), parametrize, test_catalogue_file_name_must_be_plain(), test_save_new_job_creates_a_new_catalogue_file(), test_save_new_job_into_existing_catalogue_file()
 
 ### Community 16 - "test_ci_gate.py"
 Cohesion: 0.09
-Nodes (36): Namespace, fabric(), fixture, parametrize, ci/gate.yaml and ci/baseline.json must stay in step, or CI compares apples to…, Latency is the sensitive signal when deadlines are generous., result(), test_absolute_ceilings() (+28 more)
+Nodes (38): Namespace, fabric(), fixture, parametrize, ci/gate.yaml and ci/baseline.json must stay in step, or CI compares apples to…, Latency is the sensitive signal when deadlines are generous., result(), test_absolute_ceilings() (+30 more)
 
 ### Community 17 - "gen_nodes.py"
 Cohesion: 0.17
 Nodes (26): accelerators_block(), battery_profile(), choice_weighted(), cpu_profile(), cxl_block(), dpu_block(), formats_supported(), gpu_block() (+18 more)
 
-### Community 18 - "dashboard.py"
-Cohesion: 0.06
-Nodes (55): flask, requests, build_argparser(), main(), MqttBridge, _on_message(), parse_telemetry_message(), Any (+47 more)
+### Community 18 - "test_mqtt_bridge.py"
+Cohesion: 0.10
+Nodes (28): requests, build_argparser(), main(), MqttBridge, _on_message(), parse_telemetry_message(), Any, ArgumentParser (+20 more)
 
 ### Community 19 - "Arch/microarchitecture mismatch (amd64 with ARM Neoverse uarch)"
 Cohesion: 0.15
 Nodes (25): GPU/accelerator: MI300X, Network fabric: wifi, Node class: phone, Arch/microarchitecture mismatch (amd64 with ARM Neoverse uarch), grig-010 (gaming_rig node), grig-033 (gaming_rig node), grig-039 (gaming_rig node), grig-058 (gaming_rig node) (+17 more)
 
 ### Community 20 - "summarize_nodes.py"
-Cohesion: 0.22
-Nodes (19): statistics, accel_score(), agg_stats(), cpu_capacity(), export_csv(), export_json(), export_md(), _get_field() (+11 more)
+Cohesion: 0.24
+Nodes (18): accel_score(), agg_stats(), cpu_capacity(), export_csv(), export_json(), export_md(), _get_field(), load_nodes() (+10 more)
 
 ### Community 21 - "PredictiveAnalyzer"
-Cohesion: 0.11
-Nodes (15): copy, _clamp(), _EWMA, LinkForecast, NodeForecast, _now_ms(), PredictiveAnalyzer, Any (+7 more)
+Cohesion: 0.12
+Nodes (13): _clamp(), _EWMA, LinkForecast, NodeForecast, _now_ms(), PredictiveAnalyzer, Any, Aggregate predictive telemetry for nodes and links. (+5 more)
 
 ### Community 22 - "2.0 Overall Description"
 Cohesion: 0.04
@@ -254,9 +286,9 @@ Nodes (20): RAP twin Pipeline Flowchart (riaan.png), Adaptation & Rerouting (pol
 Cohesion: 0.10
 Nodes (19): compilerOptions, allowArbitraryExtensions, allowImportingTsExtensions, erasableSyntaxOnly, jsx, lib, module, moduleDetection (+11 more)
 
-### Community 25 - "ChaosEngine"
+### Community 25 - "chaos.py"
 Cohesion: 0.07
-Nodes (23): ChaosRunner, Any, Path, OverridesStore that applies straight to DTState instead of disk/HTTP., One chaos schedule at a time, started/stopped from the API., _StateStore, _TrackedEngine, build_argparser() (+15 more)
+Nodes (27): ChaosRunner, Any, Path, OverridesStore that applies straight to DTState instead of disk/HTTP., One chaos schedule at a time, started/stopped from the API., _StateStore, _TrackedEngine, signal (+19 more)
 
 ### Community 26 - "compilerOptions"
 Cohesion: 0.12
@@ -270,41 +302,41 @@ Nodes (16): AWS Inferentia2 ASIC, CXL Type-3 memory expansion, FPGA bitstream: r
 Cohesion: 0.10
 Nodes (38): arrow(), box(), canvas(), class_box(), class_top(), label(), message(), poly() (+30 more)
 
-### Community 29 - "sys"
+### Community 29 - "benchmark_paper_figures.py"
 Cohesion: 0.10
-Nodes (38): sys, test_plot_jct_vs_load_writes_both_formats(), test_plot_sla_by_scenario_writes_both_formats(), full_inputs(), gate_row(), policy_row(), test_assemble_rows_covers_all_four_real_strategies_in_order(), test_energy_converted_kj_to_j() (+30 more)
+Nodes (37): test_plot_jct_vs_load_writes_both_formats(), test_plot_sla_by_scenario_writes_both_formats(), full_inputs(), gate_row(), policy_row(), test_assemble_rows_covers_all_four_real_strategies_in_order(), test_energy_converted_kj_to_j(), test_latency_converted_ms_to_seconds() (+29 more)
 
 ### Community 30 - "package.json"
-Cohesion: 0.12
-Nodes (16): oxlint, react-dom, tailwindcss, @tailwindcss/vite, @types/d3, @types/node, @types/react, @types/react-dom (+8 more)
+Cohesion: 0.15
+Nodes (12): oxlint, react-dom, tailwindcss, @types/d3, @types/node, @types/react, @types/react-dom, typescript (+4 more)
 
-### Community 31 - "hooks.ts"
-Cohesion: 0.07
-Nodes (40): ref_react_dom_client, @tanstack/react-query, BulkResult, LiveOptions, queryKeys, useCancelRun(), useChaos(), useClearPlans() (+32 more)
+### Community 31 - "App.tsx"
+Cohesion: 0.12
+Nodes (21): ref_react_dom_client, @tanstack/react-query, queryKeys, usePlans(), useSnapshot(), FabricEvent, keysFor(), StreamStatus (+13 more)
 
 ### Community 32 - "._emit_event"
-Cohesion: 0.17
-Nodes (10): NodeDyn, Mutable, runtime-only fields for a node., Merge an observation (same shape chaos uses): { "action": "apply"|"revert",…, Try to reserve resources on a specific node or choose one automatically. req…, Load ./nodes/*.yaml into nodes_by_name with fresh dyn slots., Precompute static capacities and store under node['caps']., Insert or update a node descriptor at runtime. Args: descriptor: Full node…, Remove a node from the live fabric (and nodes/<name>.yaml). Returns the ids of… (+2 more)
+Cohesion: 0.13
+Nodes (15): LinkDyn, NodeDyn, Mutable, runtime-only fields for a node., Merge an observation (same shape chaos uses): { "action": "apply"|"revert",…, Mutable, runtime-only fields for a link., Try to reserve resources on a specific node or choose one automatically. req…, Load ./nodes/*.yaml into nodes_by_name with fresh dyn slots., Load topology (links + defaults) if present. (+7 more)
 
-### Community 33 - "greedy.py"
-Cohesion: 0.11
-Nodes (23): crosses_site(), Economics, _finite(), Any, True when the topology declares anything worth billing., Grid intensity at this node's zone, falling back to the fabric default. A…, Cost and carbon for one stage placed on one node., Spend and emissions *per hour* for this placement. Planners compare candidates,… (+15 more)
+### Community 33 - "sys"
+Cohesion: 0.10
+Nodes (31): annotate_plan(), crosses_site(), Economics, _finite(), Any, True when the topology declares anything worth billing., Grid intensity at this node's zone, falling back to the fabric default. A…, Cost and carbon for one stage placed on one node. (+23 more)
 
-### Community 34 - "DTState"
-Cohesion: 0.09
-Nodes (33): CostModel, annotate_plan(), Add cost and carbon to a planner result, in place. Works off…, GreedyPlanner, FederatedPlanner, DTState, Register a live event listener; returns a Queue of CloudEvents., Persist current dyn states to sim/overrides.json (lossy for unknown fields). (+25 more)
+### Community 34 - "policy_benchmark.py"
+Cohesion: 0.33
+Nodes (9): aggregate_metrics(), evaluate_strategy(), _greedy_planner(), load_jobs(), main(), plot_metrics(), Path, Generate comparison plots for DT planner policies. (+1 more)
 
 ### Community 35 - "puppeteer"
-Cohesion: 0.14
-Nodes (6): puppeteer, problems, problems, t0, t1, problems
+Cohesion: 0.25
+Nodes (3): puppeteer, problems, problems
 
 ### Community 36 - "JobRunManager"
 Cohesion: 0.11
 Nodes (12): JobRun, JobRunManager, Any, Begin a run for a committed plan. Timer: argument, then job.duration_s, then…, End a running job now as completed, freeing its reservations., Set the time left from now, or add to it (a negative extend shortens it)., The twin was restarted: its reservations are gone, so just drop the records., End every run whose timer has elapsed. Returns the ids that ended. (+4 more)
 
 ### Community 37 - "JobManager.tsx"
-Cohesion: 0.08
-Nodes (40): useBlastRadius(), useDeleteJob(), useJobs(), usePlanBatch(), usePlanJob(), useRunSettings(), useSaveJob(), useWhatIf() (+32 more)
+Cohesion: 0.09
+Nodes (35): useBlastRadius(), useDeleteJob(), useJobs(), usePlanBatch(), usePlanJob(), useRunSettings(), useSaveJob(), BlastRadiusReport (+27 more)
 
 ### Community 38 - "EventBus"
 Cohesion: 0.20
@@ -315,8 +347,8 @@ Cohesion: 0.20
 Nodes (10): devDependencies, oxlint, puppeteer, @types/d3, @types/node, @types/react, @types/react-dom, typescript (+2 more)
 
 ### Community 40 - "FederationsPanel.tsx"
-Cohesion: 0.05
-Nodes (80): useBulkObserve(), useDeleteLink(), useSaveLink(), useTopology(), Federation, FederationLink, LinkMetrics, LinkProfile (+72 more)
+Cohesion: 0.08
+Nodes (51): useBulkObserve(), useDeleteNode(), useNodeDescriptor(), Federation, FederationLink, LinkFilterControls(), NodeBulkBar(), NodeFilterControls() (+43 more)
 
 ### Community 41 - "test_runs.py"
 Cohesion: 0.16
@@ -330,9 +362,9 @@ Nodes (8): icons.svg (SVG symbol sprite), bluesky-icon symbol, discord-icon symb
 Cohesion: 0.29
 Nodes (7): dependencies, d3, react, react-dom, tailwindcss, @tailwindcss/vite, @tanstack/react-query
 
-### Community 44 - "Card"
-Cohesion: 0.13
-Nodes (21): useEvents(), useObserve(), eventFamily(), EventsExplorer(), summarise(), SUMMARY_KEYS, Tone, toneFor() (+13 more)
+### Community 44 - "Mono"
+Cohesion: 0.22
+Nodes (13): useEvents(), eventFamily(), EventsExplorer(), summarise(), SUMMARY_KEYS, Tone, toneFor(), WINDOWS (+5 more)
 
 ### Community 45 - ".oxlintrc.json"
 Cohesion: 0.33
@@ -342,9 +374,9 @@ Nodes (5): plugins, rules, react/only-export-components, react/rules-of-hooks, $
 Cohesion: 0.40
 Nodes (5): NVIDIA BlueField-3 DPU, GPU/accelerator: RTX-3060, grig-034 (gaming_rig node), srv-015 (server, amd64, RTX-3060), srv-026 (server, amd64, RTX-3060)
 
-### Community 47 - "safe_float"
-Cohesion: 0.22
-Nodes (10): clamp(), link_key(), Any, Boost compute if the node supports a preferred format requested by the stage., A rough scalar for 'how big' a stage is. You can later switch to FLOP/byte…, Very rough: (idle+active) power × time., Blend node trust inverse, SSD wear, crashiness, thermal issues, and link loss., Compute sequential pipeline cost for a single job using given stage->node… (+2 more)
+### Community 47 - "CostModel"
+Cohesion: 0.25
+Nodes (11): clamp(), CostModel, link_key(), Any, Boost compute if the node supports a preferred format requested by the stage., A rough scalar for 'how big' a stage is. You can later switch to FLOP/byte…, Very rough: (idle+active) power × time., Blend node trust inverse, SSD wear, crashiness, thermal issues, and link loss. (+3 more)
 
 ### Community 48 - "BanditPolicy"
 Cohesion: 0.19
@@ -357,6 +389,10 @@ Nodes (5): scripts, build, dev, lint, preview
 ### Community 50 - "RISC-V 64 (riscv64) architecture"
 Cohesion: 0.50
 Nodes (4): RISC-V 64 (riscv64) architecture, sbc-037 (sbc, riscv64), sbc-047 (sbc, riscv64), sbc-100 (sbc, riscv64)
+
+### Community 51 - "deploy.sh script"
+Cohesion: 0.47
+Nodes (4): log(), deploy.sh script, log(), push.sh script
 
 ### Community 52 - "test_api_auth.py"
 Cohesion: 0.14
@@ -374,21 +410,21 @@ Nodes (13): barText(), click(), downNames, failures, firstThree, inCard(), notic
 Cohesion: 0.17
 Nodes (10): PlannerWeights, _bucket(), Any, Return a *bonus* score you can subtract from greedy latency (negative is…, One TD(0) update. If next_stage/next_candidates is provided: - SARSA uses…, Return a small negative number for nodes with higher Q., RLConfig, RLPolicy (+2 more)
 
-### Community 72 - "NodeManager.tsx"
-Cohesion: 0.12
-Nodes (22): useDeleteNode(), useNodeDescriptor(), useSaveNode(), NodeDescriptor, Mode, NodeEditor(), localProblem(), parseJson() (+14 more)
+### Community 72 - "dashboard.py"
+Cohesion: 0.17
+Nodes (28): flask, api_health(), api_jobs(), api_observe(), api_plan(), api_plan_batch(), api_plan_demo(), api_plans() (+20 more)
 
 ### Community 73 - "primitives.tsx"
-Cohesion: 0.11
-Nodes (29): react, useRuns(), useUpdateRunSettings(), JobRun, RunSettings, RunStage, EventsJobsPage(), REASON (+21 more)
+Cohesion: 0.08
+Nodes (43): react, useRestartTwin(), useRuns(), useSaveLink(), JobRun, RestartResult, RunStage, SnapshotLink (+35 more)
 
 ### Community 74 - "test_bundle.py"
 Cohesion: 0.14
 Nodes (30): entries(), fabric(), make(), fixture, Bundles arrive from bug reports, so treat their paths as untrusted., test_a_zip_that_is_not_a_bundle_is_rejected(), test_bundle_carries_the_whole_fabric(), test_bundle_without_live_evidence_still_works() (+22 more)
 
-### Community 75 - "._update_link_predictive_locked"
-Cohesion: 0.20
-Nodes (5): LinkDyn, Mutable, runtime-only fields for a link., Load topology (links + defaults) if present., Load sim/overrides.json if present; optionally apply immediately., Merge self._overrides into node/link dyn fields. Applied as a diff against the…
+### Community 75 - "hooks.ts"
+Cohesion: 0.17
+Nodes (17): BulkResult, LiveOptions, useCancelRun(), useChaos(), useClearPlans(), useFinishAllRuns(), useFinishRun(), useResetOverrides() (+9 more)
 
 ### Community 76 - "Industry/Alumni Mentor Interaction Record"
 Cohesion: 0.12
@@ -402,17 +438,17 @@ Nodes (15): build_argparser(), convert_to_pdf(), find_benchmark_table(), insert_
 Cohesion: 0.19
 Nodes (11): api(), commit(), failures, ids, job(), post(), problems, runs() (+3 more)
 
-### Community 80 - "test_blast_radius.py"
-Cohesion: 0.08
-Nodes (39): apply_fault(), BlastRadiusSearch, build_argparser(), candidate_faults(), Fault, load_job(), main(), _most_common() (+31 more)
+### Community 80 - "blast_radius.py"
+Cohesion: 0.09
+Nodes (40): apply_fault(), BlastRadiusSearch, build_argparser(), candidate_faults(), Fault, load_job(), main(), _most_common() (+32 more)
 
 ### Community 81 - "test_whatif.py"
-Cohesion: 0.11
-Nodes (35): apply_changes(), ChangeError, compare(), _deep_merge(), _delta(), _evaluate(), _percentile(), Any (+27 more)
+Cohesion: 0.14
+Nodes (27): apply_changes(), ChangeError, compare(), Plan `jobs` on the fabric as-is and on a changed fork, then diff., A proposed change that cannot be applied (bad descriptor, unknown node…)., Apply a change set to a forked state. Returns human-readable descriptions., job(), node() (+19 more)
 
 ### Community 82 - "run_plan.py"
-Cohesion: 0.22
-Nodes (11): os, ensure_jobs(), load_yaml(), main(), plan_remote(), print_summary(), Any, Path (+3 more)
+Cohesion: 0.18
+Nodes (14): argparse, os, ensure_jobs(), load_yaml(), main(), plan_local(), plan_remote(), print_summary() (+6 more)
 
 ### Community 83 - "launch_fabric.py"
 Cohesion: 0.13
@@ -430,17 +466,17 @@ Nodes (8): ManagedStage, Any, (node, reservation_id) for every reservation curre
 Cohesion: 0.13
 Nodes (14): 1. Ship and deploy the management UI ✅, 2.1 Cost and carbon accounting ✅ — `dt/economics.py`, 2.2 Chaos-as-CI resilience gate ✅ — `tools/ci_gate.py`, 2.3 Blast-radius finder ✅ — `sim/blast_radius.py`, 2.4 Shared planner factory — `dt/planners.py`, 2.5 Incident bundles ✅ — `tools/bundle.py`, 2.6 Import a twin from a real cluster ✅ — `tools/import_cluster.py`, 2.7 What-if capacity planning ✅ — `dt/whatif.py` (+6 more)
 
-### Community 87 - "ci_gate.py"
-Cohesion: 0.11
-Nodes (30): argparse, build_planner(), canonical_strategy(), plan_once(), Any, dt/planners.py — build a planner from a strategy name. The API, the CI gate and…, Return (planner, mode) for a strategy name. `mode` is only used by…, Plan one job. `dry_run=False` commits reservations, which models contention… (+22 more)
+### Community 87 - "run_experiments.py"
+Cohesion: 0.35
+Nodes (11): blast(), contention(), gate(), load_jobs(), main(), montecarlo(), pct(), per_strategy() (+3 more)
 
 ### Community 88 - "Future work — research validation backlog"
 Cohesion: 0.22
 Nodes (8): 1. Blocker: the paper's results are not produced by this codebase, 2.1 Validate the twin against real hardware (highest value), 2.2 Adversarial chaos search, 2.3 Counterfactual replay, 2. Three bets that would make the work genuinely unique, 3. Cheaper wins that raise credibility, 4. Known defects worth fixing before publishing, Future work — research validation backlog
 
-### Community 89 - "safe_float"
-Cohesion: 0.33
-Nodes (5): Counter, _mode_key(), Any, safe_float(), ModeConfig
+### Community 89 - "FederatedPlanner"
+Cohesion: 0.24
+Nodes (8): Counter, build_planner(), canonical_strategy(), Return (planner, mode) for a strategy name. `mode` is only used by…, FederatedPlanner, _mode_key(), Any, ModeConfig
 
 ### Community 90 - "restart.mjs"
 Cohesion: 0.19
@@ -450,9 +486,9 @@ Nodes (9): api(), events, failures, job, post(), problems, sleep(), state() (+1 
 Cohesion: 0.33
 Nodes (7): dirty_the_twin(), job(), node_by_name(), Hold a reservation, inject a fault and an ad-hoc link so there is something to…, test_planning_works_after_a_restart(), test_restart_rebuilds_the_twin_from_disk(), test_restart_requires_the_confirmation_phrase()
 
-### Community 92 - ".upsert_link"
-Cohesion: 0.22
-Nodes (4): _node_speed(), link_key(), Create or update a topology link and (optionally) write it to topology.yaml., Rewrite only the ``links:`` block of topology.yaml. The rest of the file…
+### Community 92 - "safe_float"
+Cohesion: 0.16
+Nodes (8): _node_speed(), link_key(), Cheap read-only health of one node (None if unknown)., Precompute static capacities and store under node['caps']., safe_float(), evaluate_scenario(), take_sample(), Replay a fault schedule, planning every job at each checkpoint. Wall-clock is…
 
 ### Community 93 - "pytest"
 Cohesion: 0.32
@@ -461,6 +497,66 @@ Nodes (6): pytest, client(), make_job(), fixture, test_plan_batch_reuses_plan_lo
 ### Community 94 - "make_tables.py"
 Cohesion: 0.48
 Nodes (6): contention(), gate(), Turn the JSON written by run_experiments.py (and ci/baseline.json) into LaTeX…, strategies(), thousands(), whatif()
+
+### Community 96 - "TopologyGraph.tsx"
+Cohesion: 0.15
+Nodes (16): d3, endpointId(), Hover, LinkHover(), nodeFill(), SavedPosition, TopologyGraph(), buildGraphModel() (+8 more)
+
+### Community 97 - "faults.ts"
+Cohesion: 0.13
+Nodes (20): LinkMetrics, ObservationPayload, applyLink(), applyNode(), BulkPlan, clamp(), LINK_LABELS, LINK_RESET_FIELDS (+12 more)
+
+### Community 98 - "tool"
+Cohesion: 0.12
+Nodes (17): export_dtdl(), get_plan_detail(), get_snapshot(), inject_observation(), Plan Detail: per-stage cards (node, format, compute/xfer ms, cpu, reliability,…, Create/update a declared link: {a, b, profile?, speed_gbps?, rtt_ms?,…, Stop chaos and clear every injected fault., POST /observe. payload e.g.… (+9 more)
+
+### Community 99 - "GreedyPlanner"
+Cohesion: 0.26
+Nodes (10): _fits(), GreedyPlanner, merge_stage_details(), Any, dt/policy/greedy.py — Baseline greedy planner for Fabric DT. What it does…, safe_float(), _supports_formats(), test_annotate_plan_fills_cost_for_any_planner() (+2 more)
+
+### Community 100 - "_call"
+Cohesion: 0.14
+Nodes (15): blast_radius(), _call(), download_bundle(), export_crds(), plan_catalog(), Any, Plan the entire job catalogue ('Plan entire catalog'). Committed plans hold…, Start a chaos scenario inside the twin (speed 0.1-1000). (+7 more)
+
+### Community 101 - "Snapshot"
+Cohesion: 0.15
+Nodes (11): useDeleteLink(), useObserve(), useTopology(), Snapshot, LinkManager(), coerce(), LINK_FIELDS, NODE_FIELDS (+3 more)
+
+### Community 102 - "whatif.py"
+Cohesion: 0.22
+Nodes (12): plan_once(), Any, Plan one job. `dry_run=False` commits reservations, which models contention…, _deep_merge(), _delta(), _evaluate(), _percentile(), Any (+4 more)
+
+### Community 103 - "server.py"
+Cohesion: 0.17
+Nodes (12): chaos_status(), diagnose_fabric(), get_economics(), get_health(), get_overview(), pick_strategy(), Pricing and carbon intensity in force., MCP server for RAP twin: every dashboard feature as a tool, over the REST API.… (+4 more)
+
+### Community 104 - "vite.seo.mjs"
+Cohesion: 0.31
+Nodes (7): AUTHOR, DOCS, SITE, TABS, esc(), renderPage(), setMeta()
+
+### Community 105 - "test_json_safe.py"
+Cohesion: 0.25
+Nodes (9): _strict(), test_infeasible_plan_is_strict_json(), test_json_safe_replaces_non_finite_floats(), test_plans_history_is_strict_json(), client(), fabric(), fixture, Isolated nodes/ + topology.yaml copies so tests never touch the repo files. (+1 more)
+
+### Community 106 - "_need"
+Cohesion: 0.22
+Nodes (9): clear_plans(), delete_job(), delete_link(), delete_node(), _need(), Clear plan history (reservations are not released)., Delete a node, its file and reservations., Delete a declared link by key 'A|B'. (+1 more)
+
+### Community 107 - "release"
+Cohesion: 0.25
+Nodes (9): list_reservations(), Capacity held by committed plans; filter by node or id substring., Release reservations: list of {node, reservation_id}., Release all reservations whose node/id contains the filter., Release every reservation, returning nodes to normal., release(), release_all(), release_matching() (+1 more)
+
+### Community 108 - "vite.config.ts"
+Cohesion: 0.29
+Nodes (5): @tailwindcss/vite, vite, @vitejs/plugin-react, proxy, seoPages()
+
+### Community 110 - "realtime.mjs"
+Cohesion: 0.33
+Nodes (3): problems, t0, t1
+
+### Community 111 - "plan_job"
+Cohesion: 0.40
+Nodes (5): _job(), plan_job(), Plan one job (by library id or inline). dry_run=true reserves nothing; false…, Dry-run all 7 strategies on a job and rank them (default weights: latency 1,…, recommend_strategy()
 
 ## Ambiguous Edges - Review These
 - `Arch/microarchitecture mismatch (amd64 with ARM Neoverse uarch)` → `grig-001 (gaming_rig node)`  [AMBIGUOUS]
@@ -487,9 +583,9 @@ Nodes (6): contention(), gate(), Turn the JSON written by run_experiments.py (an
   nodes/hpc-053.yaml · relation: references
 
 ## Knowledge Gaps
-- **283 isolated node(s):** `_Solution`, `DemoResult`, `run.sh script`, `$schema`, `plugins` (+278 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 678 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **19 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **287 isolated node(s):** `_Solution`, `insert`, `update`, `DemoResult`, `run.sh script` (+282 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 734 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **35 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_

@@ -1,0 +1,138 @@
+RAP twin - Department Research Colloquium 2026
+Slide-wise content (10 slides). Name the PPT/PDF: 01_RAPTwin_RiaanAttar.pptx and .pdf
+Every number below comes from the project report v3 (raptwin-report/tables and experiments).
+
+================================================================
+SLIDE 1 - TITLE
+================================================================
+RAP twin: A Digital Twin and Planning Sandbox for Distributed Systems
+
+Authors
+- Riaan Masoud Attar (first author)
+- Avanti Nitin Patil
+- Preet Prashant Boralkar
+
+Faculty Mentor: Prof. K. K. Deshmukh
+Department of Artificial Intelligence and Data Science
+K. K. Wagh Institute of Engineering Education and Research, Nashik
+Group 01 | Department Research Colloquium 2026 | 30 October 2026
+
+================================================================
+SLIDE 2 - ABSTRACT
+================================================================
+Evaluating job-scheduling policies for edge, multi-cloud and hybrid computing fabrics directly on production hardware is risky and costly. RAP twin is a digital-twin and planning sandbox that mirrors a 100-node heterogeneous fabric from YAML descriptors and live telemetry. It plans multi-stage jobs with seven pluggable strategies, injects deterministic faults, heals itself, and scores every plan for latency, energy, cost and carbon. On the reference fabric, five strategies place identically in dry-run, Resilient predicts 19% higher latency and about 40 times the cost in exchange for redundancy, and RL-Markov leaves 3 of 11 jobs infeasible under contention. A chaos-as-CI gate and a 1,000-trial Monte-Carlo sweep make these trade-offs reproducible. The study reports its measured results and known limits openly.
+
+Keywords: digital twin, distributed systems, task scheduling, chaos engineering, Monte-Carlo simulation, edge computing
+
+================================================================
+SLIDE 3 - INTRODUCTION AND MOTIVATION
+================================================================
+- Edge, multi-cloud and hybrid fabrics mix servers, workstations, single-board computers, phones and HPC nodes, with different CPUs, GPUs, links and reliability
+- Jobs are multi-stage pipelines with deadlines (SLAs); placement must balance latency, energy, cost, carbon and risk
+- Trying a new scheduler on production is dangerous: link outages and thermal throttling cause real failures
+- Digital twins give a synchronized virtual copy of the fabric where policies can be tried safely [1]-[3]
+- RAP twin: one sandbox that unites planning, fault injection, self-healing and benchmarking
+
+================================================================
+SLIDE 4 - PROBLEM DEFINITION AND RESEARCH GAP
+================================================================
+Problem
+- Choose, for every stage of a job, a node that meets resource and format limits while balancing latency, energy, cost, carbon and risk, and keep the job alive when nodes or links fail
+
+Research gap
+- Digital-twin offloading studies concentrate on learning algorithms (multi-agent and federated deep RL) [4], [5], not on a reusable sandbox for comparing planners
+- Chaos-engineering tools target software and containers and largely ignore physical-layer faults such as thermal derating and link jitter [6], [7]
+- In the literature we reviewed, we found no single sandbox combining a live twin, several planners, chaos testing, cost/carbon accounting and an automated regression gate
+- Our aim: report measured trade-offs and defects openly instead of claiming one policy wins
+
+================================================================
+SLIDE 5 - OBJECTIVES AND SCOPE
+================================================================
+Objectives
+1. Multi-strategy planning: Greedy, Cheapest-Energy, Cheapest-Cost, Greenest, Bandit, Resilient and RL-Markov
+2. Real-time state sync: YAML descriptors merged with live telemetry (REST or MQTT)
+3. Predictive analytics and self-healing controllers
+4. Deterministic chaos engineering and a chaos-as-CI gate
+5. Large-scale Monte-Carlo benchmarking
+6. What-if capacity and blast-radius analysis
+7. Interoperability: Kubernetes import, Azure DTDL and CRD export
+
+Scope
+- In: simulated policy evaluation, dashboard and REST API, benchmarking tools
+- Out: running the real workloads, a production scheduler, training deep RL agents, live 5G/6G test-bed
+
+================================================================
+SLIDE 6 - PROPOSED METHODOLOGY
+================================================================
+Closed loop: ingest state -> predict -> plan -> inject faults -> self-heal -> benchmark
+
+- State engine (DTState): merges YAML descriptors and telemetry (/observe); hot reload in about 0.5 s
+- Predictive analyzer: utilization forecast, thermal derating, link loss variability
+- Planning engine: pluggable DAG-job planners with dry-run and commit modes
+  - Greedy family (first-fit by cost/energy/carbon), Bandit, Resilient (fallback nodes and spread penalty)
+  - RL-Markov: sequential decisions scored by a weighted Tchebycheff aggregation of nine cost terms
+- Chaos engine: 14 fault kinds (link cut, noise, thermal derate, zone blackout); SelfHealingController and ResourceGuardian
+- Tools: Monte-Carlo sweeps, CI gate, blast-radius search, what-if fork, incident bundles
+- Stack: Python and Flask REST API with a React and TypeScript dashboard (live updates over server-sent events)
+
+================================================================
+SLIDE 7 - EXPERIMENTAL SETUP
+================================================================
+- Fabric: 100 nodes in 7 classes, 7 zones, 2,022 CPU cores, 10,508 GB RAM, 51 GPU nodes; links from 1 Gbps WAN to 400 Gbps InfiniBand
+- Workload: 11-job catalogue, 36 stages (vision, NLP, analytics, audio, tabular, HPC, mixed accelerator), each with a deadline
+- Experiments: (a) dry-run strategy comparison, (b) committed planning with contention, (c) chaos gate under zone events, (d) 1,000-trial Monte-Carlo sweep, (e) what-if and blast radius
+- Benchmark table: commit 2e7962d, seed 7, first 6 jobs, deadline scale 0.28
+- Everything is produced by the project's own tools and is reproducible
+
+================================================================
+SLIDE 8 - RESULTS / OBSERVATIONS
+================================================================
+Benchmark (6 jobs, seed 7): mean JCT / p95 / SLA hit
+- Greedy and Cheapest-Energy: 1.05 s / 1.26 s / 100%
+- Resilient: 1.27 s / 1.72 s / 83.3%
+- RL-Markov: 1.14 s / 1.37 s / 100% (energy 16.2 J vs 13.0 J)
+
+Dry-run, 11 jobs
+- Greedy, Cheapest-Energy, Cheapest-Cost, Greenest and Bandit give identical plans (mean latency 1,033 ms, all stages on hpc-080)
+- Resilient: +19% latency (1,229 ms) and about 40 times the cost (Rs. 2.23 vs 0.056); 97% of that is cross-zone egress
+- RL-Markov: planning takes 1.6 s per job (greedy 38.7 ms)
+
+Committed planning with contention
+- Cheapest-Cost cuts catalogue cost 93% (Rs. 0.808 to 0.059) for 3.5% more latency
+- Greenest did not reduce carbon (29.2 mg, same as Greedy)
+- Resilient holds 72 reservations vs 36; RL-Markov leaves 3 of 11 jobs infeasible
+
+Resilience and analysis
+- Zone blackout: Greedy p95 1,260 to 1,458 ms (+16%); Resilient 1,546 to 1,732 ms (+12%)
+- Monte-Carlo, 1,000 trials: 516 ms mean, 632 ms p99, 100% SLO hit
+- What-if: removing the 3 HPC nodes still meets 11/11 deadlines (the fabric is over-provisioned)
+
+================================================================
+SLIDE 9 - CONCLUSION AND FUTURE SCOPE
+================================================================
+Conclusion
+- RAP twin delivers a working, tested (166 automated tests) and deployed digital-twin sandbox
+- No strategy wins every metric: Resilient trades latency and cost for redundancy; RL-Markov is slow and can over-stack nodes; the greedy family is indistinguishable until capacity is contended
+- Rate-based carbon and cost objectives are proxies (Greenest did not cut carbon)
+- The tooling itself is a result: deterministic gate, reproducible scripts and honest reporting of limits
+
+Limitations
+- Latencies are model predictions, not executed workloads; single seed; over-provisioned fabric
+
+Future scope
+- Algorithm recommendation: dry-run all strategies and rank them for a given job
+- Fix capacity accounting in RL-Markov and the known defects, then re-baseline the gate
+- Validate the twin against real containers; add a real RL episode loop; 5G/6G test-bed integration
+
+================================================================
+SLIDE 10 - REFERENCES (IEEE) AND ACKNOWLEDGMENT
+================================================================
+[1] Q. Qi et al., "A review of digital twins in smart industries," IEEE Access, vol. 7, pp. 14232-14252, 2019.
+[2] A. Fuller et al., "Digital Twin: Enabling technologies, challenges and open research," IEEE Access, vol. 8, pp. 108952-108971, 2020.
+[3] Z. Lv et al., "Digital twins: A survey on enabling technologies, challenges, trends, and future prospects," IEEE Commun. Surveys Tuts., vol. 24, no. 1, pp. 54-87, 2022.
+[4] C. Xu et al., "Digital twin-driven collaborative scheduling for heterogeneous task and edge-end resource via multi-agent deep reinforcement learning," IEEE J. Sel. Areas Commun., vol. 41, no. 10, pp. 3056-3069, 2023.
+[5] Y. Dai et al., "Federated deep reinforcement learning for task offloading in digital twin edge networks," IEEE Trans. Netw. Sci. Eng., vol. 11, no. 3, pp. 2849-2861, 2024.
+[6] E. Esen, A. Akbulut and C. Catal, "Chaos experiments in microservice architectures: A systematic literature review," Comput. Stand. Interfaces, vol. 97, p. 104116, 2026.
+[7] F. Poltronieri, M. Tortonesi and C. Stefanelli, "ChaosTwin: A chaos engineering and digital twin approach for the design of resilient IT services," in Proc. 17th Int. Conf. Netw. Service Manage. (CNSM), 2021.
+
+Acknowledgment: We thank our guide Prof. K. K. Deshmukh, the Head of Department Prof. Dr. D. V. Medhane, and the Department of AI and DS, KKWIEER, Nashik, for guidance and support.
