@@ -1,0 +1,3 @@
+[submodule "kkwieer/manuscript"]
+	path = kkwieer/manuscript
+	url = git@github.com:riaan-attar/raptwin_manuscript.git
