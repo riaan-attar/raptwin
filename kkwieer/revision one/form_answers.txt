@@ -1,0 +1,19 @@
+Email to record: attarriaan6226@gmail.com
+PID and Full Name of Group Leader: 01 - Riaan Masoud Attar
+Project Guide (Faculty Name): Prof. K. K. Deshmukh
+Research Paper Title: RAP twin: A Digital Twin and Planning Sandbox for Distributed Systems
+Authors: Riaan Masoud Attar, Avanti Nitin Patil, Preet Prashant Boralkar
+
+Checkboxes (tick only what is true for you):
+ - Improved originality & writing clarity
+ - Corrected similarity/plagiarism issues
+ - Reduced AI-generated content
+ - Verified technical accuracy
+ - Followed prescribed format & references
+ - Arranged paper using IEEE Conference LaTeX format
+ - Updated experiments & results   (tick only if you consider the changes enough)
+ - Reviewed by project guide before upload   (tick only after your guide has reviewed it)
+
+Files: 01_RAPTwin_RiaanAttar.pdf (<1 MB), 01_RAPTwin_RiaanAttar.zip (<10 MB)
+Date of revised submission: (today's date when you upload)
+Declaration: tick all four only if you agree with each statement.

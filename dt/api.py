@@ -208,6 +208,7 @@ RESOURCE_GUARDIAN = ResourceGuardian(
         os.environ.get("FABRIC_GUARDIAN_UTIL", 0.92), 0.92
     ),
     reservation_ttl_sec=safe_float(os.environ.get("FABRIC_GUARDIAN_TTL", 300.0), 300.0),
+    on_release=SELF_HEALER.forget_reservation,
 )
 
 NOISE_INJECTOR = maybe_start_noise(STATE)

@@ -177,7 +177,7 @@ $defs:
           ram_gb:    { type: number, minimum: 0 }
           vram_gb:   { type: number, minimum: 0 }
           hbm_gb:    { type: number, minimum: 0 }
-          scratch_gb:{ type: number, minimum: 0 }
+          scratch_gb: { type: number, minimum: 0 }
           min_arches:
             type: array
             items: { enum: [amd64, arm64, riscv64] }

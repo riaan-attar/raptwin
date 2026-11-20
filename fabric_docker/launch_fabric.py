@@ -125,14 +125,16 @@ class NodeSpec:
 
 def node_from_yaml(obj: dict[str, Any]) -> NodeSpec:
     res = obj.get("resources") or {}
+    cpu_block = obj.get("cpu") or {}
+    mem_block = obj.get("memory") or {}
     gpu = obj.get("gpu") or {}
     gpu_type = str(gpu.get("type") or "none").strip().lower()
     return NodeSpec(
         name=str(obj.get("name")),
         arch=str(obj.get("arch") or "x86_64"),
         klass=str(obj.get("class") or ""),
-        cpu_cores=safe_float(res.get("cpu_cores"), 1.0),
-        mem_gb=safe_float(res.get("mem_gb"), 1.0),
+        cpu_cores=safe_float(res.get("cpu_cores"), safe_float(cpu_block.get("cores"), 1.0)),
+        mem_gb=safe_float(res.get("mem_gb"), safe_float(mem_block.get("ram_gb"), 1.0)),
         formats=list(obj.get("formats_supported") or []),
         labels=dict(obj.get("labels") or {}),
         gpu_present=gpu_type not in ("", "none"),

@@ -1607,12 +1607,6 @@
     "ast_hash": "0db9dffc95eb8a66b05466d4c0091650",
     "semantic_hash": ""
   },
-  "kkwieer/paper drafts/RAPtwin_v2.0_paper.pdf": {
-    "mtime": 1789676353.779749,
-    "seen": 1792491769.0205245,
-    "ast_hash": "9a9da13b00b24b6d7064ab0e54b061ef",
-    "semantic_hash": ""
-  },
   "kkwieer/paper/figures/arch.pdf": {
     "mtime": 1791591555.8143554,
     "seen": 1792491769.0205252,
@@ -1944,9 +1938,9 @@
     "semantic_hash": ""
   },
   "kkwieer/manuscript/01_RAPTwin_RiaanAttar.pdf": {
-    "mtime": 1792991371.7864642,
-    "seen": 1792992577.24359,
-    "ast_hash": "2a65ad7e27e1b1b8cc16a81d5fdc86fa",
+    "mtime": 1792995591.664176,
+    "seen": 1793213235.270454,
+    "ast_hash": "617964ba205d082faf46b4f607ec698a",
     "semantic_hash": ""
   },
   "kkwieer/figures/00_author_photo_riaan.png": {
@@ -2081,22 +2075,10 @@
     "ast_hash": "1d4a23e171e856a1e3044b2a4e0c862f",
     "semantic_hash": ""
   },
-  "kkwieer/manuscript/figures/architecture_current.png": {
-    "mtime": 1792991092.995697,
-    "seen": 1792992577.2436383,
-    "ast_hash": "ff67d053ac0d4e1274cae09ab98aa70f",
-    "semantic_hash": ""
-  },
   "kkwieer/manuscript/figures/fig_contention.png": {
     "mtime": 1792991092.995697,
     "seen": 1792992577.243639,
     "ast_hash": "6e07d6f804f0a2592d7aeffc2326dfcd",
-    "semantic_hash": ""
-  },
-  "kkwieer/manuscript/figures/fig_cost_co2.png": {
-    "mtime": 1792991092.995697,
-    "seen": 1792992577.24364,
-    "ast_hash": "53e1c633be69ca484a3fb2902a4b2b97",
     "semantic_hash": ""
   },
   "kkwieer/manuscript/figures/fig_gate_timeline.png": {
@@ -2109,6 +2091,60 @@
     "mtime": 1792991092.995697,
     "seen": 1792992577.2436419,
     "ast_hash": "cda17b8b3472243dd13b96b22ff9ed29",
+    "semantic_hash": ""
+  },
+  "kkwieer/extras/01_RAPTwin_RiaanAttar.pdf": {
+    "mtime": 1792995806.2070904,
+    "seen": 1793213235.2704456,
+    "ast_hash": "14790fcc7ae67e8b5e7b5aa0fd3bebe8",
+    "semantic_hash": ""
+  },
+  "kkwieer/extras/01_RAPTwin_RiaanAttar_rev1.pdf": {
+    "mtime": 1793213136.1994305,
+    "seen": 1793213235.2704484,
+    "ast_hash": "cc9f94e1ce543ad596d72a65ec3a45c4",
+    "semantic_hash": ""
+  },
+  "kkwieer/extras/AI Writing Report-01_RAPTwin_RiaanAttar - Riaan Attar.pdf": {
+    "mtime": 1793212684.3926458,
+    "seen": 1793213235.2704499,
+    "ast_hash": "7eefedb10a3ccc7b516229b3595c345f",
+    "semantic_hash": ""
+  },
+  "kkwieer/extras/RAPtwin_v2.0_paper.pdf": {
+    "mtime": 1789676353.779749,
+    "seen": 1793213235.2704513,
+    "ast_hash": "9a9da13b00b24b6d7064ab0e54b061ef",
+    "semantic_hash": ""
+  },
+  "kkwieer/extras/Similarity Report-01_RAPTwin_RiaanAttar - Riaan Attar.pdf": {
+    "mtime": 1793212675.5026805,
+    "seen": 1793213235.2704525,
+    "ast_hash": "7a5c4b712c56dea3aa26b0f6a6ded0ec",
+    "semantic_hash": ""
+  },
+  "kkwieer/manuscript/01_RAPTwin_RiaanAttar_rev1.pdf": {
+    "mtime": 1793213136.2258942,
+    "seen": 1793213235.2704551,
+    "ast_hash": "cc9f94e1ce543ad596d72a65ec3a45c4",
+    "semantic_hash": ""
+  },
+  "kkwieer/manuscript/figures/jct_vs_jobs.pdf": {
+    "mtime": 1792992669.9871237,
+    "seen": 1793213235.2704563,
+    "ast_hash": "2b9a233432fbf008252854ca35e5be0b",
+    "semantic_hash": ""
+  },
+  "kkwieer/manuscript/figures/architecture_overview.jpeg": {
+    "mtime": 1792992669.9851236,
+    "seen": 1793213235.2705026,
+    "ast_hash": "1d4a23e171e856a1e3044b2a4e0c862f",
+    "semantic_hash": ""
+  },
+  "kkwieer/manuscript/figures/fig_rl_markov_flow.png": {
+    "mtime": 1792992669.9861238,
+    "seen": 1793213235.2705073,
+    "ast_hash": "1e7fa1a4073a3fc8ae2494bf6766f13a",
     "semantic_hash": ""
   }
 }

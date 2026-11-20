@@ -311,8 +311,10 @@ class ResourceGuardian:
         poll_interval: float = 5.0,
         utilization_threshold: float = 0.92,
         reservation_ttl_sec: float = 300.0,
+        on_release=None,
     ) -> None:
         self.state = state
+        self.on_release = on_release
         self.poll_interval = max(1.0, poll_interval)
         self.utilization_threshold = utilization_threshold
         self.reservation_ttl_sec = reservation_ttl_sec
@@ -362,6 +364,11 @@ class ResourceGuardian:
 
             _, rid = oldest
             if self.state.release(node_name, rid):
+                if self.on_release:
+                    try:
+                        self.on_release(rid)
+                    except Exception:
+                        pass
                 self.state._emit_event(  # type: ignore[attr-defined]
                     "fabric.guardian.release",
                     {

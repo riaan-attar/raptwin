@@ -150,6 +150,7 @@ class DTState:
         event_buf = max(32, safe_int(os.environ.get("FABRIC_DT_EVENT_BUFFER", 512), 512))
         self._events = EventBus(maxlen=event_buf)
         self._predictor = PredictiveAnalyzer()
+        self._last_forecast_rel: Dict[str, float] = {}
         self._snapshot_cache: Optional[Dict[str, Any]] = None
         self._snapshot_generation: int = 0
 
@@ -473,11 +474,17 @@ class DTState:
         max_cores = safe_float(caps.get("max_cpu_cores"), 0.0)
         used = safe_float(dyn.get("used_cpu_cores"), 0.0)
         util = 0.0 if max_cores <= 1e-9 else clamp(used / max(1e-9, max_cores), 0.0, 1.0)
+        # dyn["reliability"] holds the predictor's *adjusted* output. Feeding it
+        # back as the base would re-apply the MTBF/battery discount on every
+        # update, so only pass it when something outside the predictor changed it.
+        last_rel = self._last_forecast_rel.get(name)
+        cur_rel = dyn.get("reliability")
+        base_rel = None if (last_rel is not None and cur_rel == last_rel) else cur_rel
         forecast = self._predictor.record_node_util(
             name,
             util,
             thermal_derate=safe_float(dyn.get("thermal_derate"), 0.0),
-            reliability=dyn.get("reliability"),
+            reliability=base_rel,
             availability_window_sec=dyn.get("availability_window_sec"),
             battery_pct=dyn.get("battery_pct"),
             battery_drain_pct_per_hr=dyn.get("battery_drain_pct_per_hr"),
@@ -487,6 +494,7 @@ class DTState:
         dyn["util_forecast"] = forecast.util_forecast
         dyn["projected_derate"] = forecast.projected_derate
         dyn["reliability"] = forecast.reliability
+        self._last_forecast_rel[name] = forecast.reliability
         dyn["predicted_failure_window_sec"] = forecast.availability_window_sec
         event_payload = {
             "node": name,
