@@ -2,6 +2,39 @@
 
 A self-contained digital-twin and planning sandbox for experimenting with job placement, scheduling policies, failure scenarios, and performance analytics. The repository bundles a Flask API, console planner, browser dashboard, Monte-Carlo tooling, chaos engine, and optional Docker launcher so you can drive closed-loop simulations end-to-end on a laptop or workstation.
 
+## Quick start (how to run the project)
+
+Requirements: Python 3.12 or newer, Node.js 20+ (only for the React dashboard), Git. Docker is optional.
+
+```bash
+# 1. Get the code and install the Python dependencies
+git clone https://github.com/riaan-attar/raptwin.git
+cd raptwin
+python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# 2. Start the digital twin API  ->  http://127.0.0.1:8080  (health: /health)
+python -m dt.api --host 127.0.0.1 --port 8080
+
+# 3. In a second terminal: start the React dashboard  ->  http://localhost:5173
+cd web && npm install && npm run dev
+
+# 4. Plan a job from the command line (third terminal, venv active)
+python -m planner.run_plan --help
+make plan
+
+# 5. Run the tests
+pytest -q
+```
+
+Useful shortcuts: `make install`, `make run-api`, `make web-dev`, `make chaos`, `make montecarlo`, `make policy-benchmark`. Set `FABRIC_API_KEY` to require an `X-API-Key` header on mutating routes. The older Flask dashboard is still available with `python -m ui.dashboard --port 8090 --remote http://127.0.0.1:8080`. For a production-style deployment (Caddy + systemd), see `deploy/README.md`. Step-by-step notes are in `run.md`.
+
+## License and contact
+
+This is a private, proprietary project. **Copyright (c) 2025-2026 Riaan Attar. All rights reserved.** No one may copy, modify, distribute, sublicense or use the code, documentation or data without prior written permission. See [LICENSE](LICENSE). Participation and contribution rules are in [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+Owner: Riaan Attar, attarriaan6226@gmail.com, +91 94236 44203, riaanattar.dev
+
 ## Table of contents
 1. [Fresh machine setup](#fresh-machine-setup)
 2. [Repository layout](#repository-layout)
